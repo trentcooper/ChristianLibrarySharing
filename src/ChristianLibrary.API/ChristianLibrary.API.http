@@ -1,0 +1,6 @@
+@ChristianLibrary.API_HostAddress = http://localhost:5129
+
+GET {{ChristianLibrary.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
