@@ -121,6 +121,19 @@ This project showcases my ability to architect and build production-grade full-s
 - User statistics
 - Book statistics
 - Recent activity tracking
+## 📸 Screenshots
+
+### Login Page
+![Login Page](docs/screenshots/login-page.png)
+
+### Admin Dashboard
+![Dashboard](docs/screenshots/dashboard.png)
+
+### User Management
+![User Management](docs/screenshots/user-management.png)
+
+### Book Approvals
+![Book Approvals](docs/screenshots/book-approvals.png)
 
 ## 🎓 Key Learning Outcomes
 
