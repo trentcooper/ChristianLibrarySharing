@@ -202,7 +202,7 @@ Created via database seeder:
 
 **Trent Cooper**
 - LinkedIn: [linkedin.com/in/trent-s-cooper](https://linkedin.com/in/trent-s-cooper)
-- Email: trent.cooper@example.com
+- Email: trent.s.cooper@gmail.com
 - GitHub: [@trentcooper](https://github.com/trentcooper)
 
 ---
