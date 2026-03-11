@@ -1,4 +1,5 @@
 ﻿using ChristianLibrary.Domain.Entities;
+using ChristianLibrary.Services.DTOs.Books;
 
 namespace ChristianLibrary.Services.Interfaces;
 
@@ -11,14 +12,14 @@ public interface IBookService
     /// Gets a book by ID
     /// </summary>
     Task<Book?> GetBookByIdAsync(int id);
-    
+
     /// <summary>
     /// Gets all books
     /// </summary>
     Task<List<Book>> GetAllBooksAsync();
-    
+
     /// <summary>
-    /// Creates a new book
+    /// Adds a new book manually to the authenticated user's catalog
     /// </summary>
-    Task<Book> CreateBookAsync(Book book);
+    Task<BookResponse> AddBookAsync(CreateBookRequest request, string ownerId);
 }

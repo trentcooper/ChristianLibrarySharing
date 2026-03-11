@@ -1,128 +1,107 @@
 using ChristianLibrary.Data.Context;
 using ChristianLibrary.Domain.Entities;
-using ChristianLibrary.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using ChristianLibrary.Services.DTOs.Books;
+using ChristianLibrary.Services.Interfaces;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
-
-
 
 namespace ChristianLibrary.Services;
 
 /// <summary>
-/// Service for book management operations
+/// Service handling book catalog operations
 /// </summary>
 public class BookService : IBookService
 {
     private readonly ApplicationDbContext _context;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly ILogger<BookService> _logger;
 
-    public BookService(ApplicationDbContext context, ILogger<BookService> logger)
+    public BookService(
+        ApplicationDbContext context,
+        UserManager<ApplicationUser> userManager,
+        ILogger<BookService> logger)
     {
         _context = context;
+        _userManager = userManager;
         _logger = logger;
-        _logger.LogInformation("BookService initialized");
     }
-
     /// <summary>
     /// Gets a book by ID
     /// </summary>
     public async Task<Book?> GetBookByIdAsync(int id)
     {
-        _logger.LogInformation("Retrieving book with {BookId}", id);
-        
-        try
-        {
-            var book = await _context.Books
-                .FirstOrDefaultAsync(b => b.Id == id);
-            
-            if (book == null)
-            {
-                _logger.LogWarning("Book with {BookId} not found", id);
-                return null;
-            }
-            
-            _logger.LogInformation(
-                "Successfully retrieved book {BookId}: {Title} by {Author}",
-                book.Id,
-                book.Title,
-                book.Author
-            );
-            
-            return book;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Error occurred while retrieving book {BookId}",
-                id
-            );
-            throw;
-        }
+        _logger.LogInformation("Getting book by ID: {BookId}", id);
+        return await _context.Books.FindAsync(id);
     }
 
     /// <summary>
-    /// Gets all books from database
+    /// Gets all books
     /// </summary>
     public async Task<List<Book>> GetAllBooksAsync()
     {
-        _logger.LogInformation("Retrieving all books from database");
-        
-        try
-        {
-            var books = await _context.Books
-                .OrderBy(b => b.Title)
-                .ToListAsync();
-            
-            _logger.LogInformation(
-                "Successfully retrieved {BookCount} books from database",
-                books.Count
-            );
-            
-            return books;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error occurred while retrieving all books");
-            throw;
-        }
+        _logger.LogInformation("Getting all books");
+        return await _context.Books.ToListAsync();
     }
-
+    
     /// <summary>
-    /// Creates a new book
+    /// Adds a new book manually to the authenticated user's catalog
     /// </summary>
-    public async Task<Book> CreateBookAsync(Book book)
+    public async Task<BookResponse> AddBookAsync(CreateBookRequest request, string ownerId)
     {
-        _logger.LogInformation(
-            "Creating new book: {Title} by {Author}",
-            book.Title,
-            book.Author
-        );
-        
+        _logger.LogInformation("Adding book for user {OwnerId}: {Title}", ownerId, request.Title);
+
         try
         {
-            book.CreatedAt = DateTime.UtcNow;
-            book.UpdatedAt = DateTime.UtcNow;
-            
+            var owner = await _userManager.FindByIdAsync(ownerId);
+            if (owner == null)
+            {
+                _logger.LogWarning("AddBook failed: User {OwnerId} not found", ownerId);
+                return BookResponse.CreateFailure("User not found");
+            }
+
+            if (!owner.IsActive)
+            {
+                _logger.LogWarning("AddBook failed: User {OwnerId} account is inactive", ownerId);
+                return BookResponse.CreateFailure("Your account is inactive. Please contact support.");
+            }
+
+            var book = new Book
+            {
+                Title = request.Title.Trim(),
+                Author = request.Author.Trim(),
+                ISBN = request.ISBN?.Trim(),
+                Publisher = request.Publisher?.Trim(),
+                PublicationYear = request.PublicationYear,
+                PageCount = request.PageCount,
+                Edition = request.Edition?.Trim(),
+                Language = request.Language.Trim(),
+                Genre = request.Genre,
+                Description = request.Description?.Trim(),
+                Condition = request.Condition,
+                OwnerNotes = request.OwnerNotes?.Trim(),
+                IsAvailable = true,
+                IsVisible = true,
+                IsDeleted = false,
+                BorrowCount = 0,
+                OwnerId = ownerId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
             _context.Books.Add(book);
             await _context.SaveChangesAsync();
-            
+
             _logger.LogInformation(
-                "Successfully created book {BookId}: {Title}",
-                book.Id,
-                book.Title
-            );
-            
-            return book;
+                "Book added successfully: {Title} (ID: {BookId}) for user {OwnerId}",
+                book.Title, book.Id, ownerId);
+
+            return BookResponse.CreateSuccess("Book added to your catalog successfully", book.Id);
         }
         catch (Exception ex)
         {
-            _logger.LogError(
-                ex,
-                "Error occurred while creating book: {Title}",
-                book.Title
-            );
-            throw;
+            _logger.LogError(ex, "Unexpected error adding book for user {OwnerId}", ownerId);
+            return BookResponse.CreateFailure("An unexpected error occurred while adding the book");
         }
     }
 }

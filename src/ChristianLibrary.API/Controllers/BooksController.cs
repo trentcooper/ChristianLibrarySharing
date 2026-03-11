@@ -1,11 +1,17 @@
-using Microsoft.AspNetCore.Mvc;
+using ChristianLibrary.Services.DTOs.Books;
 using ChristianLibrary.Services.Interfaces;
-using ChristianLibrary.Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ChristianLibrary.API.Controllers;
 
+/// <summary>
+/// Controller for book catalog operations
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class BooksController : ControllerBase
 {
     private readonly IBookService _bookService;
@@ -21,10 +27,10 @@ public class BooksController : ControllerBase
     /// Get all books
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<List<Book>>> GetAll()
+    [AllowAnonymous]
+    public async Task<IActionResult> GetAll()
     {
         _logger.LogInformation("GET /api/books - Retrieving all books");
-        
         var books = await _bookService.GetAllBooksAsync();
         return Ok(books);
     }
@@ -33,44 +39,51 @@ public class BooksController : ControllerBase
     /// Get a book by ID
     /// </summary>
     [HttpGet("{id}")]
-    public async Task<ActionResult<Book>> GetById(int id)
+    [AllowAnonymous]
+    public async Task<IActionResult> GetById(int id)
     {
         _logger.LogInformation("GET /api/books/{BookId} - Retrieving book", id);
-        
+
         var book = await _bookService.GetBookByIdAsync(id);
-        
         if (book == null)
         {
-            _logger.LogWarning("Book {BookId} not found, returning 404", id);
+            _logger.LogWarning("Book {BookId} not found", id);
             return NotFound(new { message = $"Book with ID {id} not found" });
         }
-        
+
         return Ok(book);
     }
 
     /// <summary>
-    /// Create a new book
+    /// Adds a new book manually to the authenticated user's catalog
     /// </summary>
     [HttpPost]
-    public async Task<ActionResult<Book>> Create([FromBody] Book book)
+    [ProducesResponseType(typeof(BookResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(BookResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> AddBook([FromBody] CreateBookRequest request)
     {
-        _logger.LogInformation(
-            "POST /api/books - Creating book: {Title}",
-            book.Title
-        );
-        
-        if (string.IsNullOrWhiteSpace(book.Title) || string.IsNullOrWhiteSpace(book.Author))
+        var ownerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(ownerId))
         {
-            _logger.LogWarning("Invalid book data provided");
-            return BadRequest(new { message = "Title and Author are required" });
+            _logger.LogWarning("AddBook failed: Unable to resolve user identity from token");
+            return Unauthorized();
         }
-        
-        var createdBook = await _bookService.CreateBookAsync(book);
-        
-        return CreatedAtAction(
-            nameof(GetById),
-            new { id = createdBook.Id },
-            createdBook
-        );
+
+        if (string.IsNullOrWhiteSpace(request.Title))
+            return BadRequest(BookResponse.CreateFailure("Title is required"));
+
+        if (string.IsNullOrWhiteSpace(request.Author))
+            return BadRequest(BookResponse.CreateFailure("Author is required"));
+
+        var response = await _bookService.AddBookAsync(request, ownerId);
+
+        if (!response.Success)
+        {
+            _logger.LogWarning("AddBook failed for user {OwnerId}: {Message}", ownerId, response.Message);
+            return BadRequest(response);
+        }
+
+        return CreatedAtAction(nameof(GetById), new { id = response.BookId }, response);
     }
 }
