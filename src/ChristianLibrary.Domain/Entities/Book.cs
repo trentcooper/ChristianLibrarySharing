@@ -1,124 +1,91 @@
-﻿using System.ComponentModel.DataAnnotations;
-using ChristianLibrary.Domain.Enums;
+﻿using ChristianLibrary.Domain.Enums;
 
 namespace ChristianLibrary.Domain.Entities
 {
     /// <summary>
-    /// Represents a book in the Christian Library system
-    /// Maps to US-04.01: Create book data model
+    /// Represents a book in a user's personal library catalog
     /// </summary>
-    public class Book : BaseEntity
+    public class Book
     {
-        /// <summary>
-        /// Book title (required)
-        /// </summary>
-        [Required]
-        [MaxLength(500)]
+        public int Id { get; set; }
+
+        // ── Bibliographic Information ──────────────────────────────────────
+
+        /// <summary>Full title of the book</summary>
         public string Title { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Book author (required)
-        /// </summary>
-        [Required]
-        [MaxLength(300)]
+        /// <summary>Author(s) of the book</summary>
         public string Author { get; set; } = string.Empty;
 
-        /// <summary>
-        /// ISBN (International Standard Book Number)
-        /// </summary>
-        [MaxLength(20)]
+        /// <summary>ISBN-10 or ISBN-13</summary>
         public string? ISBN { get; set; }
 
-        /// <summary>
-        /// Publisher name
-        /// </summary>
-        [MaxLength(200)]
+        /// <summary>Publishing company or organization</summary>
         public string? Publisher { get; set; }
 
-        /// <summary>
-        /// Publication year
-        /// </summary>
+        /// <summary>Year the book was published</summary>
         public int? PublicationYear { get; set; }
 
-        /// <summary>
-        /// Book genre or category
-        /// </summary>
-        [MaxLength(100)]
-        public string? Genre { get; set; }
-
-        /// <summary>
-        /// Physical condition of the book
-        /// </summary>
-        public BookCondition Condition { get; set; } = BookCondition.Good;
-
-        /// <summary>
-        /// Detailed description of the book
-        /// </summary>
-        [MaxLength(2000)]
-        public string? Description { get; set; }
-
-        /// <summary>
-        /// Book cover image URL or path
-        /// </summary>
-        [MaxLength(500)]
-        public string? CoverImageUrl { get; set; }
-
-        /// <summary>
-        /// Number of pages
-        /// </summary>
+        /// <summary>Total number of pages</summary>
         public int? PageCount { get; set; }
 
-        /// <summary>
-        /// Language of the book
-        /// </summary>
-        [MaxLength(50)]
-        public string? Language { get; set; }
+        /// <summary>Edition of the book (e.g. "2nd Edition")</summary>
+        public string? Edition { get; set; }
 
-        /// <summary>
-        /// Whether the book is currently available for borrowing
-        /// </summary>
+        /// <summary>Language the book is written in</summary>
+        public string Language { get; set; } = "English";
+
+        // ── Classification ─────────────────────────────────────────────────
+
+        /// <summary>Genre or category of the book</summary>
+        public BookGenre Genre { get; set; } = BookGenre.Other;
+
+        /// <summary>Short description or synopsis</summary>
+        public string? Description { get; set; }
+
+        // ── Physical State & Availability ──────────────────────────────────
+
+        /// <summary>Physical condition of the book</summary>
+        public BookCondition Condition { get; set; } = BookCondition.Good;
+
+        /// <summary>Whether the book is currently available to borrow</summary>
         public bool IsAvailable { get; set; } = true;
-
-        /// <summary>
-        /// Whether the book is visible in searches
-        /// </summary>
+        
+        // ── Physical State & Availability ──────────────────────────────────
         public bool IsVisible { get; set; } = true;
+        public bool IsDeleted { get; set; } = false;
 
-        /// <summary>
-        /// Foreign key to the owner (ApplicationUser)
-        /// </summary>
-        [Required]
-        public string OwnerId { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Additional notes from the owner
-        /// </summary>
-        [MaxLength(1000)]
+        /// <summary>Optional notes from the owner visible to potential borrowers</summary>
         public string? OwnerNotes { get; set; }
 
-        /// <summary>
-        /// Number of times this book has been borrowed
-        /// </summary>
+        // ── Media ──────────────────────────────────────────────────────────
+
+        /// <summary>URL to the book cover image</summary>
+        public string? CoverImageUrl { get; set; }
+        
+    
+
+        // ── Statistics ─────────────────────────────────────────────────────
         public int BorrowCount { get; set; } = 0;
-
-        /// <summary>
-        /// Average rating (for future reviews feature)
-        /// </summary>
         public decimal? AverageRating { get; set; }
+        
 
-        /// <summary>
-        /// Navigation property to the book owner
-        /// </summary>
-        public virtual ApplicationUser Owner { get; set; } = null!;
+        // ── Audit Fields ───────────────────────────────────────────────────
 
-        /// <summary>
-        /// Navigation property to borrow requests for this book
-        /// </summary>
-        public virtual ICollection<BorrowRequest> BorrowRequests { get; set; } = new List<BorrowRequest>();
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedAt { get; set; }
 
-        /// <summary>
-        /// Navigation property to loans for this book
-        /// </summary>
-        public virtual ICollection<Loan> Loans { get; set; } = new List<Loan>();
+        // ── Relationships ──────────────────────────────────────────────────
+
+        /// <summary>Foreign key to ApplicationUser (Identity GUID)</summary>
+        public string OwnerId { get; set; } = string.Empty;
+
+        /// <summary>The user who owns this book</summary>
+        public ApplicationUser Owner { get; set; } = null!;
+
+        /// <summary>All loan history for this book</summary>
+        public ICollection<Loan> Loans { get; set; } = new List<Loan>();
+        
+        public ICollection<BorrowRequest> BorrowRequests { get; set; } = new List<BorrowRequest>();
     }
 }

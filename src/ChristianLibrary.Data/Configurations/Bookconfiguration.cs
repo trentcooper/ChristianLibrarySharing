@@ -44,7 +44,8 @@ namespace ChristianLibrary.Data.Configurations
                 .HasMaxLength(200);
 
             builder.Property(b => b.Genre)
-                .HasMaxLength(100);
+                .IsRequired()
+                .HasConversion<int>();
 
             builder.Property(b => b.Description)
                 .HasMaxLength(2000);
