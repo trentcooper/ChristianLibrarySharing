@@ -192,7 +192,8 @@ try
             });
     });
 
-    
+    // ISBN Lookup Service
+    builder.Services.AddHttpClient<IIsbnLookupService, IsbnLookupService>();
 
     WebApplication app;
     try

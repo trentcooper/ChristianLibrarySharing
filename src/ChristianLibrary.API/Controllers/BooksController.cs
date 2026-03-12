@@ -1,5 +1,6 @@
 using ChristianLibrary.Services.DTOs.Books;
 using ChristianLibrary.Services.Interfaces;
+using ChristianLibrary.Services.DTOs.Books;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -15,11 +16,17 @@ namespace ChristianLibrary.API.Controllers;
 public class BooksController : ControllerBase
 {
     private readonly IBookService _bookService;
+    private readonly IIsbnLookupService _isbnLookupService;
     private readonly ILogger<BooksController> _logger;
+    
 
-    public BooksController(IBookService bookService, ILogger<BooksController> logger)
+    public BooksController(
+        IBookService bookService,
+        IIsbnLookupService isbnLookupService,
+        ILogger<BooksController> logger)
     {
         _bookService = bookService;
+        _isbnLookupService = isbnLookupService;
         _logger = logger;
     }
 
@@ -85,5 +92,28 @@ public class BooksController : ControllerBase
         }
 
         return CreatedAtAction(nameof(GetById), new { id = response.BookId }, response);
+    }
+    
+    /// <summary>
+    /// Looks up book details by ISBN from Open Library
+    /// </summary>
+    [HttpGet("isbn/{isbn}")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(IsbnLookupResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IsbnLookupResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(IsbnLookupResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> LookupByIsbn(string isbn)
+    {
+        if (string.IsNullOrWhiteSpace(isbn))
+            return BadRequest(IsbnLookupResponse.CreateError("ISBN is required"));
+
+        _logger.LogInformation("GET /api/books/isbn/{Isbn} - Looking up book", isbn);
+
+        var result = await _isbnLookupService.LookupByIsbnAsync(isbn);
+
+        if (!result.Found)
+            return NotFound(result);
+
+        return Ok(result);
     }
 }
