@@ -11,7 +11,7 @@ public interface IBookService
     /// <summary>
     /// Gets a book by ID
     /// </summary>
-    Task<Book?> GetBookByIdAsync(int id);
+    Task<Book?> GetBookByIdAsync(int bookId);
 
     /// <summary>
     /// Gets all books
@@ -22,4 +22,9 @@ public interface IBookService
     /// Adds a new book manually to the authenticated user's catalog
     /// </summary>
     Task<BookResponse> AddBookAsync(CreateBookRequest request, string ownerId);
+    
+    /// <summary>
+    /// Updates an existing book in the authenticated user's catalog
+    /// </summary>
+    Task<BookResponse> UpdateBookAsync(int bookId, UpdateBookRequest request, string ownerId);
 }

@@ -116,4 +116,46 @@ public class BooksController : ControllerBase
 
         return Ok(result);
     }
+    
+    /// <summary>
+    /// Updates an existing book in the authenticated user's catalog
+    /// </summary>
+    [HttpPut("{id}")]
+    [ProducesResponseType(typeof(BookResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(BookResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(BookResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(BookResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> UpdateBook(int id, [FromBody] UpdateBookRequest request)
+    {
+        var ownerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(ownerId))
+            return Unauthorized();
+
+        if (string.IsNullOrWhiteSpace(request.Title))
+            return BadRequest(BookResponse.CreateFailure("Title is required"));
+
+        if (string.IsNullOrWhiteSpace(request.Author))
+            return BadRequest(BookResponse.CreateFailure("Author is required"));
+
+        var response = await _bookService.UpdateBookAsync(id, request, ownerId);
+
+        if (!response.Success)
+        {
+            _logger.LogWarning(
+                "UpdateBook failed for book {BookId} by user {OwnerId}: {Message}",
+                id, ownerId, response.Message);
+
+            // Distinguish between not found and permission denied
+            if (response.Message.Contains("not found"))
+                return NotFound(response);
+
+            if (response.Message.Contains("permission"))
+                return StatusCode(StatusCodes.Status403Forbidden, response);
+
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
 }
