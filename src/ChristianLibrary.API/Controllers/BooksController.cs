@@ -3,6 +3,7 @@ using ChristianLibrary.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using ChristianLibrary.Domain.Entities;
 
 namespace ChristianLibrary.API.Controllers;
 
@@ -226,5 +227,29 @@ public class BooksController : ControllerBase
         }
 
         return Ok(response);
+    }
+    
+    /// <summary>
+    /// Returns all books in the authenticated user's catalog
+    /// </summary>
+    [HttpGet("my-books")]
+    [ProducesResponseType(typeof(List<Book>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetMyBooks()
+    {
+        var ownerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(ownerId))
+            return Unauthorized();
+
+        _logger.LogInformation(
+            "GET /api/books/my-books - Retrieving catalog for user {OwnerId}", ownerId);
+
+        var books = await _bookService.GetMyBooksAsync(ownerId);
+
+        return Ok(new
+        {
+            count = books.Count,
+            books
+        });
     }
 }

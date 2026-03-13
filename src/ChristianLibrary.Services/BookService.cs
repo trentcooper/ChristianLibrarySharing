@@ -274,4 +274,25 @@ public class BookService : IBookService
                 "An unexpected error occurred while updating book availability");
         }
     }
+    
+    /// <summary>
+    /// Returns all books belonging to the authenticated user
+    /// </summary>
+    public async Task<List<Book>> GetMyBooksAsync(string ownerId)
+    {
+        _logger.LogInformation("Getting book collection for user {OwnerId}", ownerId);
+
+        try
+        {
+            return await _context.Books
+                .Where(b => b.OwnerId == ownerId && !b.IsDeleted)
+                .OrderBy(b => b.Title)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error retrieving books for user {OwnerId}", ownerId);
+            return new List<Book>();
+        }
+    }
 }

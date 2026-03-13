@@ -37,4 +37,9 @@ public interface IBookService
     /// Updates the availability status of a book
     /// </summary>
     Task<BookResponse> UpdateBookAvailabilityAsync(int bookId, bool isAvailable, string ownerId);
+    
+    /// <summary>
+    /// Returns all books belonging to the authenticated user
+    /// </summary>
+    Task<List<Book>> GetMyBooksAsync(string ownerId);
 }
