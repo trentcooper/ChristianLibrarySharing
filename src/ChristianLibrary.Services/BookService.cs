@@ -223,4 +223,55 @@ public class BookService : IBookService
             return BookResponse.CreateFailure("An unexpected error occurred while deleting the book");
         }
     }
+    
+    /// <summary>
+    /// Updates the availability status of a book — only the owner can change availability
+    /// </summary>
+    public async Task<BookResponse> UpdateBookAvailabilityAsync(int bookId, bool isAvailable, string ownerId)
+    {
+        _logger.LogInformation(
+            "Availability update for book {BookId} to {IsAvailable} by user {OwnerId}",
+            bookId, isAvailable, ownerId);
+
+        try
+        {
+            var book = await _context.Books.FindAsync(bookId);
+
+            if (book == null || book.IsDeleted)
+            {
+                _logger.LogWarning(
+                    "UpdateAvailability failed: Book {BookId} not found", bookId);
+                return BookResponse.CreateFailure($"Book with ID {bookId} not found");
+            }
+
+            if (book.OwnerId != ownerId)
+            {
+                _logger.LogWarning(
+                    "UpdateAvailability failed: User {OwnerId} does not own book {BookId}",
+                    ownerId, bookId);
+                return BookResponse.CreateFailure(
+                    "You do not have permission to update this book");
+            }
+
+            book.IsAvailable = isAvailable;
+            book.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            var statusMessage = isAvailable ? "available" : "unavailable";
+            _logger.LogInformation(
+                "Book {BookId} marked as {Status} by user {OwnerId}",
+                bookId, statusMessage, ownerId);
+
+            return BookResponse.CreateSuccess(
+                $"Book marked as {statusMessage} successfully", bookId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Unexpected error updating availability for book {BookId}", bookId);
+            return BookResponse.CreateFailure(
+                "An unexpected error occurred while updating book availability");
+        }
+    }
 }

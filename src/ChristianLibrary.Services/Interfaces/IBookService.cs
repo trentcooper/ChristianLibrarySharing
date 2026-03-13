@@ -32,4 +32,9 @@ public interface IBookService
     /// Soft deletes a book from the authenticated user's catalog
     /// </summary>
     Task<BookResponse> DeleteBookAsync(int bookId, string ownerId);
+    
+    /// <summary>
+    /// Updates the availability status of a book
+    /// </summary>
+    Task<BookResponse> UpdateBookAvailabilityAsync(int bookId, bool isAvailable, string ownerId);
 }

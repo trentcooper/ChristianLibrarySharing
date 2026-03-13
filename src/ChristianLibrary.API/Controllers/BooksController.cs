@@ -192,4 +192,39 @@ public class BooksController : ControllerBase
 
         return Ok(response);
     }
+    
+    /// <summary>
+    /// Updates the availability status of a book
+    /// </summary>
+    [HttpPatch("{id}/availability")]
+    [ProducesResponseType(typeof(BookResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(BookResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(BookResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(BookResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> UpdateAvailability(int id, [FromBody] bool isAvailable)
+    {
+        var ownerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(ownerId))
+            return Unauthorized();
+
+        var response = await _bookService.UpdateBookAvailabilityAsync(id, isAvailable, ownerId);
+
+        if (!response.Success)
+        {
+            _logger.LogWarning(
+                "UpdateAvailability failed for book {BookId} by user {OwnerId}: {Message}",
+                id, ownerId, response.Message);
+
+            if (response.Message.Contains("not found"))
+                return NotFound(response);
+
+            if (response.Message.Contains("permission"))
+                return StatusCode(StatusCodes.Status403Forbidden, response);
+
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
 }
