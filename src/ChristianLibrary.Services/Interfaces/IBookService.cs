@@ -27,4 +27,9 @@ public interface IBookService
     /// Updates an existing book in the authenticated user's catalog
     /// </summary>
     Task<BookResponse> UpdateBookAsync(int bookId, UpdateBookRequest request, string ownerId);
+    
+    /// <summary>
+    /// Soft deletes a book from the authenticated user's catalog
+    /// </summary>
+    Task<BookResponse> DeleteBookAsync(int bookId, string ownerId);
 }

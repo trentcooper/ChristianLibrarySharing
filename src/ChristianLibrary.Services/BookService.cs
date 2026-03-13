@@ -168,4 +168,59 @@ public class BookService : IBookService
             return BookResponse.CreateFailure("An unexpected error occurred while updating the book");
         }
     }
+    
+    /// <summary>
+    /// Soft deletes a book — only the owner can delete their book
+    /// </summary>
+    public async Task<BookResponse> DeleteBookAsync(int bookId, string ownerId)
+    {
+        _logger.LogInformation(
+            "Delete book {BookId} requested by user {OwnerId}", bookId, ownerId);
+
+        try
+        {
+            var book = await _context.Books.FindAsync(bookId);
+
+            if (book == null || book.IsDeleted)
+            {
+                _logger.LogWarning("DeleteBook failed: Book {BookId} not found", bookId);
+                return BookResponse.CreateFailure($"Book with ID {bookId} not found");
+            }
+
+            if (book.OwnerId != ownerId)
+            {
+                _logger.LogWarning(
+                    "DeleteBook failed: User {OwnerId} does not own book {BookId}",
+                    ownerId, bookId);
+                return BookResponse.CreateFailure("You do not have permission to delete this book");
+            }
+
+            if (!book.IsAvailable)
+            {
+                _logger.LogWarning(
+                    "DeleteBook failed: Book {BookId} is currently on loan", bookId);
+                return BookResponse.CreateFailure(
+                    "This book cannot be deleted while it is currently on loan");
+            }
+
+            // Soft delete - preserve data for loan history integrity
+            book.IsDeleted = true;
+            book.IsAvailable = false;
+            book.IsVisible = false;
+            book.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Book {BookId} soft deleted by user {OwnerId}", bookId, ownerId);
+
+            return BookResponse.CreateSuccess("Book removed from your catalog successfully", bookId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error deleting book {BookId} for user {OwnerId}",
+                bookId, ownerId);
+            return BookResponse.CreateFailure("An unexpected error occurred while deleting the book");
+        }
+    }
 }

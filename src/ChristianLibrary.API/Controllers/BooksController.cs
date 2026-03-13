@@ -1,6 +1,5 @@
 using ChristianLibrary.Services.DTOs.Books;
 using ChristianLibrary.Services.Interfaces;
-using ChristianLibrary.Services.DTOs.Books;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -147,6 +146,41 @@ public class BooksController : ControllerBase
                 id, ownerId, response.Message);
 
             // Distinguish between not found and permission denied
+            if (response.Message.Contains("not found"))
+                return NotFound(response);
+
+            if (response.Message.Contains("permission"))
+                return StatusCode(StatusCodes.Status403Forbidden, response);
+
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+    
+    /// <summary>
+    /// Soft deletes a book from the authenticated user's catalog
+    /// </summary>
+    [HttpDelete("{id}")]
+    [ProducesResponseType(typeof(BookResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(BookResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(BookResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(BookResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> DeleteBook(int id)
+    {
+        var ownerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(ownerId))
+            return Unauthorized();
+
+        var response = await _bookService.DeleteBookAsync(id, ownerId);
+
+        if (!response.Success)
+        {
+            _logger.LogWarning(
+                "DeleteBook failed for book {BookId} by user {OwnerId}: {Message}",
+                id, ownerId, response.Message);
+
             if (response.Message.Contains("not found"))
                 return NotFound(response);
 
