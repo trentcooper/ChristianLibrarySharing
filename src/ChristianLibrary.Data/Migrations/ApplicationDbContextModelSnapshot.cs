@@ -151,6 +151,12 @@ namespace ChristianLibrary.Data.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
 
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
@@ -160,10 +166,6 @@ namespace ChristianLibrary.Data.Migrations
 
                     b.Property<int>("Genre")
                         .HasColumnType("int");
-
-                    b.Property<string>("ISBN")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
 
                     b.Property<bool>("IsAvailable")
                         .ValueGeneratedOnAdd()
@@ -179,6 +181,10 @@ namespace ChristianLibrary.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
+
+                    b.Property<string>("Isbn")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("Language")
                         .IsRequired()
@@ -214,19 +220,22 @@ namespace ChristianLibrary.Data.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Author");
 
                     b.HasIndex("Genre");
 
-                    b.HasIndex("ISBN");
-
                     b.HasIndex("IsAvailable");
 
                     b.HasIndex("IsDeleted");
 
                     b.HasIndex("IsVisible");
+
+                    b.HasIndex("Isbn");
 
                     b.HasIndex("OwnerId");
 

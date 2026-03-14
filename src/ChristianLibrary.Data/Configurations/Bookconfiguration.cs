@@ -20,7 +20,7 @@ namespace ChristianLibrary.Data.Configurations
             // Indexes
             builder.HasIndex(b => b.Title);
             builder.HasIndex(b => b.Author);
-            builder.HasIndex(b => b.ISBN);
+            builder.HasIndex(b => b.Isbn);
             builder.HasIndex(b => b.Genre);
             builder.HasIndex(b => b.OwnerId);
             builder.HasIndex(b => b.IsAvailable);
@@ -37,7 +37,7 @@ namespace ChristianLibrary.Data.Configurations
                 .IsRequired()
                 .HasMaxLength(300);
 
-            builder.Property(b => b.ISBN)
+            builder.Property(b => b.Isbn)
                 .HasMaxLength(20);
 
             builder.Property(b => b.Publisher)

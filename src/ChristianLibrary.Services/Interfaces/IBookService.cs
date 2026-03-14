@@ -42,4 +42,9 @@ public interface IBookService
     /// Returns all books belonging to the authenticated user
     /// </summary>
     Task<List<Book>> GetMyBooksAsync(string ownerId);
+    
+    /// <summary>
+    /// Returns all books matching the search criteria passed in to the function
+    /// </summary>
+    Task<List<Book>> SearchBooksAsync(string query, string? genre = null, bool availableOnly = false);
 }

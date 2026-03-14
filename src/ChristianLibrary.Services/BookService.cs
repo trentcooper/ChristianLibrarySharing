@@ -1,5 +1,6 @@
 using ChristianLibrary.Data.Context;
 using ChristianLibrary.Domain.Entities;
+using ChristianLibrary.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using ChristianLibrary.Services.DTOs.Books;
 using ChristianLibrary.Services.Interfaces;
@@ -71,7 +72,7 @@ public class BookService : IBookService
             {
                 Title = request.Title.Trim(),
                 Author = request.Author.Trim(),
-                ISBN = request.ISBN?.Trim(),
+                Isbn = request.ISBN?.Trim(),
                 Publisher = request.Publisher?.Trim(),
                 PublicationYear = request.PublicationYear,
                 PageCount = request.PageCount,
@@ -141,7 +142,7 @@ public class BookService : IBookService
             // Apply updates
             book.Title = request.Title.Trim();
             book.Author = request.Author.Trim();
-            book.ISBN = request.ISBN?.Trim();
+            book.Isbn = request.ISBN?.Trim();
             book.Publisher = request.Publisher?.Trim();
             book.PublicationYear = request.PublicationYear;
             book.PageCount = request.PageCount;
@@ -292,6 +293,46 @@ public class BookService : IBookService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error retrieving books for user {OwnerId}", ownerId);
+            return new List<Book>();
+        }
+    }
+    
+    public async Task<List<Book>> SearchBooksAsync(string query, string? genre = null, bool availableOnly = false)
+    {
+        _logger.LogInformation(
+            "Searching books - query='{Query}', genre='{Genre}', availableOnly={AvailableOnly}",
+            query, genre, availableOnly);
+
+        try
+        {
+            var searchTerm = query.Trim().ToLower();
+
+            var booksQuery = _context.Books
+                .Where(b => !b.IsDeleted)
+                .Where(b =>
+                    b.Title.ToLower().Contains(searchTerm) ||
+                    b.Author.ToLower().Contains(searchTerm) ||
+                    (b.Isbn != null && b.Isbn.ToLower().Contains(searchTerm)));
+
+            // Genre filter - parse string to enum if provided
+            if (!string.IsNullOrWhiteSpace(genre))
+            {
+                if (Enum.TryParse<BookGenre>(genre, ignoreCase: true, out var genreEnum))
+                    booksQuery = booksQuery.Where(b => b.Genre == genreEnum);
+                else
+                    _logger.LogWarning("SearchBooks received unrecognized genre value '{Genre}'", genre);
+            }
+
+            if (availableOnly)
+                booksQuery = booksQuery.Where(b => b.IsAvailable);
+
+            return await booksQuery
+                .OrderBy(b => b.Title)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error searching books with query '{Query}'", query);
             return new List<Book>();
         }
     }

@@ -459,7 +459,7 @@ namespace ChristianLibrary.Data.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_Books_ISBN",
                 table: "Books",
-                column: "ISBN");
+                column: "Isbn");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Books_IsDeleted",

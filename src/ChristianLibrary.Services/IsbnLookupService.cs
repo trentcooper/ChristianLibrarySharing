@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 namespace ChristianLibrary.Services;
 
 /// <summary>
-/// Looks up book details by ISBN using the Open Library API
+/// Looks up book details by Isbn using the Open Library API
 /// </summary>
 public class IsbnLookupService : IIsbnLookupService
 {
@@ -14,7 +14,7 @@ public class IsbnLookupService : IIsbnLookupService
     private readonly ILogger<IsbnLookupService> _logger;
 
     private const string OpenLibraryBaseUrl =
-        "https://openlibrary.org/api/books?bibkeys=ISBN:{0}&format=json&jscmd=data";
+        "https://openlibrary.org/api/books?bibkeys=Isbn:{0}&format=json&jscmd=data";
 
     public IsbnLookupService(HttpClient httpClient, ILogger<IsbnLookupService> logger)
     {
@@ -24,10 +24,10 @@ public class IsbnLookupService : IIsbnLookupService
 
     public async Task<IsbnLookupResponse> LookupByIsbnAsync(string isbn)
     {
-        // Sanitize ISBN - strip hyphens and spaces
+        // Sanitize Isbn - strip hyphens and spaces
         var cleanIsbn = isbn.Replace("-", "").Replace(" ", "").Trim();
 
-        _logger.LogInformation("Looking up ISBN {Isbn} via Open Library", cleanIsbn);
+        _logger.LogInformation("Looking up Isbn {Isbn} via Open Library", cleanIsbn);
 
         try
         {
@@ -37,20 +37,20 @@ public class IsbnLookupService : IIsbnLookupService
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning(
-                    "Open Library returned {StatusCode} for ISBN {Isbn}",
+                    "Open Library returned {StatusCode} for Isbn {Isbn}",
                     response.StatusCode, cleanIsbn);
                 return IsbnLookupResponse.CreateError(
                     "Unable to reach the book lookup service. Please try again later.");
             }
 
             var json = await response.Content.ReadAsStringAsync();
-            var key = $"ISBN:{cleanIsbn}";
+            var key = $"Isbn:{cleanIsbn}";
 
             using var document = JsonDocument.Parse(json);
 
             if (!document.RootElement.TryGetProperty(key, out var bookElement))
             {
-                _logger.LogInformation("No book found for ISBN {Isbn}", cleanIsbn);
+                _logger.LogInformation("No book found for Isbn {Isbn}", cleanIsbn);
                 return IsbnLookupResponse.CreateNotFound(cleanIsbn);
             }
 
@@ -131,7 +131,7 @@ public class IsbnLookupService : IIsbnLookupService
             }
 
             _logger.LogInformation(
-                "ISBN {Isbn} resolved to: {Title} by {Author}",
+                "Isbn {Isbn} resolved to: {Title} by {Author}",
                 cleanIsbn, title, author);
 
             return IsbnLookupResponse.CreateFound(
@@ -148,21 +148,21 @@ public class IsbnLookupService : IIsbnLookupService
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex, "Network error during ISBN lookup for {Isbn}", cleanIsbn);
+            _logger.LogError(ex, "Network error during Isbn lookup for {Isbn}", cleanIsbn);
             return IsbnLookupResponse.CreateError(
                 "Unable to reach the book lookup service. Please check your connection.");
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Failed to parse Open Library response for ISBN {Isbn}", cleanIsbn);
+            _logger.LogError(ex, "Failed to parse Open Library response for Isbn {Isbn}", cleanIsbn);
             return IsbnLookupResponse.CreateError(
                 "Received an unexpected response from the book lookup service.");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error during ISBN lookup for {Isbn}", cleanIsbn);
+            _logger.LogError(ex, "Unexpected error during Isbn lookup for {Isbn}", cleanIsbn);
             return IsbnLookupResponse.CreateError(
-                "An unexpected error occurred during ISBN lookup.");
+                "An unexpected error occurred during Isbn lookup.");
         }
     }
 }

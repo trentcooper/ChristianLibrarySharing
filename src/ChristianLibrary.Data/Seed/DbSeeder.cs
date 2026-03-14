@@ -163,7 +163,7 @@ public class DbSeeder
             {
                 Title = "Mere Christianity",
                 Author = "C.S. Lewis",
-                ISBN = "978-0060652920",
+                Isbn = "978-0060652920",
                 Publisher = "HarperOne",
                 PublicationYear = 1952,
                 Description = "A theological book by C.S. Lewis, adapted from a series of BBC radio talks made between 1941 and 1944.",
@@ -178,7 +178,7 @@ public class DbSeeder
             {
                 Title = "The Cost of Discipleship",
                 Author = "Dietrich Bonhoeffer",
-                ISBN = "978-0684815008",
+                Isbn = "978-0684815008",
                 Publisher = "Touchstone",
                 PublicationYear = 1937,
                 Description = "A compelling statement of the demands of sacrifice and ethical consistency from a man whose life ended in martyrdom.",
@@ -193,7 +193,7 @@ public class DbSeeder
             {
                 Title = "Knowing God",
                 Author = "J.I. Packer",
-                ISBN = "978-0830816507",
+                Isbn = "978-0830816507",
                 Publisher = "InterVarsity Press",
                 PublicationYear = 1973,
                 Description = "A classic work on the character and nature of God, and the implications for Christian living.",
@@ -208,7 +208,7 @@ public class DbSeeder
             {
                 Title = "The Pilgrim's Progress",
                 Author = "John Bunyan",
-                ISBN = "978-0140430196",
+                Isbn = "978-0140430196",
                 Publisher = "Penguin Classics",
                 PublicationYear = 1678,
                 Description = "A Christian allegory following the journey of Christian from the City of Destruction to the Celestial City.",
@@ -223,7 +223,7 @@ public class DbSeeder
             {
                 Title = "The Screwtape Letters",
                 Author = "C.S. Lewis",
-                ISBN = "978-0060652937",
+                Isbn = "978-0060652937",
                 Publisher = "HarperOne",
                 PublicationYear = 1942,
                 Description = "A series of letters from a senior demon to his nephew, providing insight into Christian spiritual warfare.",
@@ -238,7 +238,7 @@ public class DbSeeder
             {
                 Title = "Basic Christianity",
                 Author = "John Stott",
-                ISBN = "978-0830834136",
+                Isbn = "978-0830834136",
                 Publisher = "InterVarsity Press",
                 PublicationYear = 1958,
                 Description = "A clear, classic presentation of the essential truths of Christianity.",

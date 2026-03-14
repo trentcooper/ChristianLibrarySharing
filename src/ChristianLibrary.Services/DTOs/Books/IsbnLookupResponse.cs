@@ -1,7 +1,7 @@
 ﻿namespace ChristianLibrary.Services.DTOs.Books;
 
 /// <summary>
-/// Response DTO for ISBN lookup results from Open Library
+/// Response DTO for Isbn lookup results from Open Library
 /// </summary>
 public class IsbnLookupResponse
 {
@@ -48,7 +48,7 @@ public class IsbnLookupResponse
         new()
         {
             Found = false,
-            Message = $"No book found for ISBN {isbn}"
+            Message = $"No book found for Isbn {isbn}"
         };
 
     public static IsbnLookupResponse CreateError(string message) =>

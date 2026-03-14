@@ -95,7 +95,7 @@ public class BooksController : ControllerBase
     }
     
     /// <summary>
-    /// Looks up book details by ISBN from Open Library
+    /// Looks up book details by Isbn from Open Library
     /// </summary>
     [HttpGet("isbn/{isbn}")]
     [AllowAnonymous]
@@ -105,7 +105,7 @@ public class BooksController : ControllerBase
     public async Task<IActionResult> LookupByIsbn(string isbn)
     {
         if (string.IsNullOrWhiteSpace(isbn))
-            return BadRequest(IsbnLookupResponse.CreateError("ISBN is required"));
+            return BadRequest(IsbnLookupResponse.CreateError("Isbn is required"));
 
         _logger.LogInformation("GET /api/books/isbn/{Isbn} - Looking up book", isbn);
 
@@ -250,6 +250,37 @@ public class BooksController : ControllerBase
         {
             count = books.Count,
             books
+        });
+    }
+    
+    /// <summary>
+    /// Searches books by title, author, Isbn, or genre
+    /// </summary>
+    [HttpGet("search")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SearchBooks(
+        [FromQuery] string q,
+        [FromQuery] string? genre = null,
+        [FromQuery] bool availableOnly = false)
+    {
+        if (string.IsNullOrWhiteSpace(q))
+            return BadRequest(new { message = "Search query 'q' is required." });
+
+        _logger.LogInformation(
+            "GET /api/books/search - query='{Query}', genre='{Genre}', availableOnly={AvailableOnly}",
+            q, genre, availableOnly);
+
+        var results = await _bookService.SearchBooksAsync(q, genre, availableOnly);
+
+        return Ok(new
+        {
+            query = q,
+            genre,
+            availableOnly,
+            count = results.Count,
+            books = results
         });
     }
 }
