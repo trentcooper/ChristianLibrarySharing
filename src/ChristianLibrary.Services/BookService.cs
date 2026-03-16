@@ -454,110 +454,183 @@ public class BookService : IBookService
             return new List<BookSearchResult>();
         }
     }
-    
+
     /// <summary>
-/// Returns full book detail with privacy-filtered owner info,
-/// optional distance calculation, and similar books
-/// </summary>
-public async Task<BookDetailResponse?> GetBookDetailAsync(
-    int bookId,
-    double? callerLatitude = null,
-    double? callerLongitude = null)
-{
-    _logger.LogInformation("Getting book detail for book {BookId}", bookId);
-
-    try
+    /// Returns full book detail with privacy-filtered owner info,
+    /// optional distance calculation, and similar books
+    /// </summary>
+    public async Task<BookDetailResponse?> GetBookDetailAsync(
+        int bookId,
+        double? callerLatitude = null,
+        double? callerLongitude = null)
     {
-        var book = await _context.Books
-            .Include(b => b.Owner)
-            .ThenInclude(u => u.Profile)
-            .FirstOrDefaultAsync(b => b.Id == bookId && !b.IsDeleted);
+        _logger.LogInformation("Getting book detail for book {BookId}", bookId);
 
-        if (book == null)
+        try
         {
-            _logger.LogWarning("Book {BookId} not found", bookId);
+            var book = await _context.Books
+                .Include(b => b.Owner)
+                .ThenInclude(u => u.Profile)
+                .FirstOrDefaultAsync(b => b.Id == bookId && !b.IsDeleted);
+
+            if (book == null)
+            {
+                _logger.LogWarning("Book {BookId} not found", bookId);
+                return null;
+            }
+
+            var response = new BookDetailResponse
+            {
+                Id = book.Id,
+                Title = book.Title,
+                Author = book.Author,
+                Isbn = book.Isbn,
+                Publisher = book.Publisher,
+                PublicationYear = book.PublicationYear,
+                PageCount = book.PageCount,
+                Edition = book.Edition,
+                Language = book.Language,
+                Genre = book.Genre.ToString(),
+                Description = book.Description,
+                Condition = book.Condition.ToString(),
+                CoverImageUrl = book.CoverImageUrl,
+                OwnerNotes = book.OwnerNotes,
+                IsAvailable = book.IsAvailable
+            };
+
+            // ── Privacy-filtered owner information ─────────────────
+            var profile = book.Owner?.Profile;
+            if (profile != null)
+            {
+                response.OwnerDisplayName = profile.ShowFullName
+                    ? profile.FullName
+                    : "Community Member";
+
+                if (profile.ShowCityState)
+                {
+                    response.OwnerCity = profile.City;
+                    response.OwnerState = profile.State;
+                }
+            }
+
+            // ── Distance calculation (if caller location provided) ──
+            if (callerLatitude.HasValue && callerLongitude.HasValue &&
+                profile?.Latitude != null && profile?.Longitude != null)
+            {
+                response.DistanceMiles = Math.Round(
+                    CalculateDistanceMiles(
+                        callerLatitude.Value, callerLongitude.Value,
+                        (double)profile.Latitude, (double)profile.Longitude),
+                    1);
+            }
+
+            // ── Similar books (same genre OR same author) ───────────
+            var similarBooks = await _context.Books
+                .Include(b => b.Owner)
+                .ThenInclude(u => u.Profile)
+                .Where(b => b.Id != bookId &&
+                            !b.IsDeleted &&
+                            b.IsVisible &&
+                            (b.Genre == book.Genre || b.Author == book.Author))
+                .OrderBy(b => b.Title)
+                .Take(5)
+                .ToListAsync();
+
+            response.SimilarBooks = similarBooks.Select(b => new SimilarBookResponse
+            {
+                Id = b.Id,
+                Title = b.Title,
+                Author = b.Author,
+                Genre = b.Genre.ToString(),
+                CoverImageUrl = b.CoverImageUrl,
+                IsAvailable = b.IsAvailable
+            }).ToList();
+
+            _logger.LogInformation(
+                "Book detail retrieved for {BookId} with {SimilarCount} similar books",
+                bookId, response.SimilarBooks.Count);
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error getting book detail for {BookId}", bookId);
             return null;
         }
-
-        var response = new BookDetailResponse
-        {
-            Id = book.Id,
-            Title = book.Title,
-            Author = book.Author,
-            Isbn = book.Isbn,
-            Publisher = book.Publisher,
-            PublicationYear = book.PublicationYear,
-            PageCount = book.PageCount,
-            Edition = book.Edition,
-            Language = book.Language,
-            Genre = book.Genre.ToString(),
-            Description = book.Description,
-            Condition = book.Condition.ToString(),
-            CoverImageUrl = book.CoverImageUrl,
-            OwnerNotes = book.OwnerNotes,
-            IsAvailable = book.IsAvailable
-        };
-
-        // ── Privacy-filtered owner information ─────────────────
-        var profile = book.Owner?.Profile;
-        if (profile != null)
-        {
-            response.OwnerDisplayName = profile.ShowFullName
-                ? profile.FullName
-                : "Community Member";
-
-            if (profile.ShowCityState)
-            {
-                response.OwnerCity = profile.City;
-                response.OwnerState = profile.State;
-            }
-        }
-
-        // ── Distance calculation (if caller location provided) ──
-        if (callerLatitude.HasValue && callerLongitude.HasValue &&
-            profile?.Latitude != null && profile?.Longitude != null)
-        {
-            response.DistanceMiles = Math.Round(
-                CalculateDistanceMiles(
-                    callerLatitude.Value, callerLongitude.Value,
-                    (double)profile.Latitude, (double)profile.Longitude),
-                1);
-        }
-
-        // ── Similar books (same genre OR same author) ───────────
-        var similarBooks = await _context.Books
-            .Include(b => b.Owner)
-            .ThenInclude(u => u.Profile)
-            .Where(b => b.Id != bookId &&
-                        !b.IsDeleted &&
-                        b.IsVisible &&
-                        (b.Genre == book.Genre || b.Author == book.Author))
-            .OrderBy(b => b.Title)
-            .Take(5)
-            .ToListAsync();
-
-        response.SimilarBooks = similarBooks.Select(b => new SimilarBookResponse
-        {
-            Id = b.Id,
-            Title = b.Title,
-            Author = b.Author,
-            Genre = b.Genre.ToString(),
-            CoverImageUrl = b.CoverImageUrl,
-            IsAvailable = b.IsAvailable
-        }).ToList();
-
-        _logger.LogInformation(
-            "Book detail retrieved for {BookId} with {SimilarCount} similar books",
-            bookId, response.SimilarBooks.Count);
-
-        return response;
     }
-    catch (Exception ex)
+
+    /// <summary>
+    /// Returns recently added books optionally filtered by geographic area.
+    /// Defaults to books added in the last 30 days, limited to 20 results.
+    /// </summary>
+    public async Task<List<BookSearchResult>> GetRecentBooksAsync(
+        int daysSince = 30,
+        int limit = 20,
+        double? latitude = null,
+        double? longitude = null,
+        double radiusMiles = 25)
     {
-        _logger.LogError(ex, "Unexpected error getting book detail for {BookId}", bookId);
-        return null;
+        _logger.LogInformation(
+            "Getting recent books - daysSince={DaysSince}, limit={Limit}, hasLocation={HasLocation}",
+            daysSince, limit, latitude.HasValue);
+
+        try
+        {
+            var cutoffDate = DateTime.UtcNow.AddDays(-daysSince);
+
+            var booksQuery = _context.Books
+                .Include(b => b.Owner)
+                .ThenInclude(u => u.Profile)
+                .Where(b => !b.IsDeleted &&
+                            b.IsVisible &&
+                            b.CreatedAt >= cutoffDate);
+
+            var books = await booksQuery.ToListAsync();
+
+            // If location provided filter by radius and attach distance
+            if (latitude.HasValue && longitude.HasValue)
+            {
+                var results = books
+                    .Select(b =>
+                    {
+                        double? distance = null;
+
+                        if (b.Owner?.Profile?.Latitude != null &&
+                            b.Owner?.Profile?.Longitude != null)
+                        {
+                            distance = CalculateDistanceMiles(
+                                latitude.Value, longitude.Value,
+                                (double)b.Owner.Profile.Latitude,
+                                (double)b.Owner.Profile.Longitude);
+                        }
+
+                        return new BookSearchResult
+                        {
+                            Book = b,
+                            DistanceMiles = distance
+                        };
+                    })
+                    .Where(r => r.DistanceMiles == null || r.DistanceMiles <= radiusMiles)
+                    .OrderByDescending(r => r.Book.CreatedAt)
+                    .Take(limit)
+                    .ToList();
+
+                return results;
+            }
+
+            // No location — just return most recent
+            return books
+                .OrderByDescending(b => b.CreatedAt)
+                .Take(limit)
+                .Select(b => new BookSearchResult { Book = b, DistanceMiles = null })
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error getting recent books");
+            return new List<BookSearchResult>();
+        }
     }
-}
 
 // -------------------------------------------------------
 // Sorting Helpers

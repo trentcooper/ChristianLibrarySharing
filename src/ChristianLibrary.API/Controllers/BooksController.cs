@@ -350,4 +350,55 @@ public class BooksController : ControllerBase
             })
         });
     }
+    
+    /// <summary>
+    /// Returns recently added books optionally filtered by geographic area
+    /// </summary>
+    [HttpGet("recent")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetRecentBooks(
+        [FromQuery] int days = 30,
+        [FromQuery] int limit = 20,
+        [FromQuery] double? lat = null,
+        [FromQuery] double? lon = null,
+        [FromQuery] double radius = 25)
+    {
+        if (days <= 0 || days > 365)
+            return BadRequest(new { message = "Days must be between 1 and 365." });
+
+        if (limit <= 0 || limit > 50)
+            return BadRequest(new { message = "Limit must be between 1 and 50." });
+
+        if (lat.HasValue && (lat < -90 || lat > 90))
+            return BadRequest(new { message = "Latitude must be between -90 and 90." });
+
+        if (lon.HasValue && (lon < -180 || lon > 180))
+            return BadRequest(new { message = "Longitude must be between -180 and 180." });
+
+        _logger.LogInformation(
+            "GET /api/books/recent - days={Days}, limit={Limit}, hasLocation={HasLocation}",
+            days, limit, lat.HasValue);
+
+        var results = await _bookService.GetRecentBooksAsync(
+            days, limit, lat, lon, radius);
+
+        return Ok(new
+        {
+            daysSince = days,
+            limit,
+            latitude = lat,
+            longitude = lon,
+            radiusMiles = lat.HasValue ? radius : (double?)null,
+            count = results.Count,
+            books = results.Select(r => new
+            {
+                r.Book,
+                distanceMiles = r.DistanceMiles.HasValue
+                    ? Math.Round(r.DistanceMiles.Value, 1)
+                    : (double?)null
+            })
+        });
+    }
 }

@@ -76,4 +76,14 @@ public interface IBookService
         int bookId,
         double? callerLatitude = null,
         double? callerLongitude = null);
+    
+    /// <summary>
+    /// Returns recently added books within a geographic area
+    /// </summary>
+    Task<List<BookSearchResult>> GetRecentBooksAsync(
+        int daysSince = 30,
+        int limit = 20,
+        double? latitude = null,
+        double? longitude = null,
+        double radiusMiles = 25);
 }
