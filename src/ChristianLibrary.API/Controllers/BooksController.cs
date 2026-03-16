@@ -265,17 +265,19 @@ public class BooksController : ControllerBase
         [FromQuery] string? genre = null,
         [FromQuery] bool availableOnly = false,
         [FromQuery] string? condition = null,
-        [FromQuery] string? churchAffiliation = null)
+        [FromQuery] string? churchAffiliation = null,
+        [FromQuery] string sortBy = "relevance",
+        [FromQuery] string sortDirection = "asc")
     {
         if (string.IsNullOrWhiteSpace(q))
             return BadRequest(new { message = "Search query 'q' is required." });
 
         _logger.LogInformation(
-            "GET /api/books/search - query='{Query}', genre='{Genre}', availableOnly={AvailableOnly}, condition='{Condition}', church='{Church}'",
-            q, genre, availableOnly, condition, churchAffiliation);
+            "GET /api/books/search - query='{Query}', sortBy='{SortBy}', sortDirection='{SortDirection}'",
+            q, sortBy, sortDirection);
 
         var results = await _bookService.SearchBooksAsync(
-            q, genre, availableOnly, condition, churchAffiliation);
+            q, genre, availableOnly, condition, churchAffiliation, sortBy, sortDirection);
 
         return Ok(new
         {
@@ -284,6 +286,8 @@ public class BooksController : ControllerBase
             availableOnly,
             condition,
             churchAffiliation,
+            sortBy,
+            sortDirection,
             count = results.Count,
             books = results
         });
@@ -302,7 +306,9 @@ public class BooksController : ControllerBase
         [FromQuery] double radius = 25,
         [FromQuery] string? q = null,
         [FromQuery] string? genre = null,
-        [FromQuery] bool availableOnly = false)
+        [FromQuery] bool availableOnly = false,
+        [FromQuery] string sortBy = "distance",
+        [FromQuery] string sortDirection = "asc")
     {
         if (lat < -90 || lat > 90)
             return BadRequest(new { message = "Latitude must be between -90 and 90." });
@@ -314,11 +320,11 @@ public class BooksController : ControllerBase
             return BadRequest(new { message = "Radius must be between 1 and 100 miles." });
 
         _logger.LogInformation(
-            "GET /api/books/nearby - lat={Lat}, lon={Lon}, radius={Radius}, query='{Query}'",
-            lat, lon, radius, q);
+            "GET /api/books/nearby - lat={Lat}, lon={Lon}, radius={Radius}, sortBy='{SortBy}'",
+            lat, lon, radius, sortBy);
 
         var results = await _bookService.SearchBooksNearLocationAsync(
-            lat, lon, radius, q, genre, availableOnly);
+            lat, lon, radius, q, genre, availableOnly, sortBy, sortDirection);
 
         return Ok(new
         {
@@ -328,6 +334,8 @@ public class BooksController : ControllerBase
             query = q,
             genre,
             availableOnly,
+            sortBy,
+            sortDirection,
             count = results.Count,
             books = results.Select(r => new
             {

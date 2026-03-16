@@ -301,71 +301,69 @@ public class BookService : IBookService
     /// Returns all books matching the search criteria passed in to the function
     /// </summary>
     public async Task<List<Book>> SearchBooksAsync(
-    string query,
-    string? genre = null,
-    bool availableOnly = false,
-    string? condition = null,
-    string? churchAffiliation = null)
-{
-    _logger.LogInformation(
-        "Searching books - query='{Query}', genre='{Genre}', availableOnly={AvailableOnly}, condition='{Condition}', church='{Church}'",
-        query, genre, availableOnly, condition, churchAffiliation);
-
-    try
+        string query,
+        string? genre = null,
+        bool availableOnly = false,
+        string? condition = null,
+        string? churchAffiliation = null,
+        string sortBy = "relevance",
+        string sortDirection = "asc")
     {
-        var searchTerm = query.Trim().ToLower();
+        _logger.LogInformation(
+            "Searching books - query='{Query}', genre='{Genre}', availableOnly={AvailableOnly}, condition='{Condition}', church='{Church}', sortBy='{SortBy}', sortDirection='{SortDirection}'",
+            query, genre, availableOnly, condition, churchAffiliation, sortBy, sortDirection);
 
-        var booksQuery = _context.Books
-            .Include(b => b.Owner)
-            .ThenInclude(u => u.Profile)
-            .Where(b => !b.IsDeleted)
-            .Where(b =>
-                b.Title.ToLower().Contains(searchTerm) ||
-                b.Author.ToLower().Contains(searchTerm) ||
-                (b.Isbn != null && b.Isbn.ToLower().Contains(searchTerm)));
-
-        // Genre filter
-        if (!string.IsNullOrWhiteSpace(genre))
+        try
         {
-            if (Enum.TryParse<BookGenre>(genre, ignoreCase: true, out var genreEnum))
-                booksQuery = booksQuery.Where(b => b.Genre == genreEnum);
-            else
-                _logger.LogWarning("SearchBooks received unrecognized genre '{Genre}'", genre);
-        }
+            var searchTerm = query.Trim().ToLower();
 
-        // Condition filter
-        if (!string.IsNullOrWhiteSpace(condition))
+            var booksQuery = _context.Books
+                .Include(b => b.Owner)
+                .ThenInclude(u => u.Profile)
+                .Where(b => !b.IsDeleted)
+                .Where(b =>
+                    b.Title.ToLower().Contains(searchTerm) ||
+                    b.Author.ToLower().Contains(searchTerm) ||
+                    (b.Isbn != null && b.Isbn.ToLower().Contains(searchTerm)));
+
+            if (!string.IsNullOrWhiteSpace(genre))
+            {
+                if (Enum.TryParse<BookGenre>(genre, ignoreCase: true, out var genreEnum))
+                    booksQuery = booksQuery.Where(b => b.Genre == genreEnum);
+                else
+                    _logger.LogWarning("SearchBooks received unrecognized genre '{Genre}'", genre);
+            }
+
+            if (!string.IsNullOrWhiteSpace(condition))
+            {
+                if (Enum.TryParse<BookCondition>(condition, ignoreCase: true, out var conditionEnum))
+                    booksQuery = booksQuery.Where(b => b.Condition == conditionEnum);
+                else
+                    _logger.LogWarning("SearchBooks received unrecognized condition '{Condition}'", condition);
+            }
+
+            if (availableOnly)
+                booksQuery = booksQuery.Where(b => b.IsAvailable);
+
+            if (!string.IsNullOrWhiteSpace(churchAffiliation))
+            {
+                var churchTerm = churchAffiliation.Trim().ToLower();
+                booksQuery = booksQuery.Where(b =>
+                    b.Owner.Profile != null &&
+                    b.Owner.Profile.ChurchName != null &&
+                    b.Owner.Profile.ChurchName.ToLower().Contains(churchTerm));
+            }
+
+            // Fetch then apply in-memory sorting
+            var books = await booksQuery.ToListAsync();
+            return ApplySorting(books, sortBy, sortDirection, query);
+        }
+        catch (Exception ex)
         {
-            if (Enum.TryParse<BookCondition>(condition, ignoreCase: true, out var conditionEnum))
-                booksQuery = booksQuery.Where(b => b.Condition == conditionEnum);
-            else
-                _logger.LogWarning("SearchBooks received unrecognized condition '{Condition}'", condition);
+            _logger.LogError(ex, "Unexpected error searching books with query '{Query}'", query);
+            return new List<Book>();
         }
-
-        // Availability filter
-        if (availableOnly)
-            booksQuery = booksQuery.Where(b => b.IsAvailable);
-
-        // Church affiliation filter
-        if (!string.IsNullOrWhiteSpace(churchAffiliation))
-        {
-            var churchTerm = churchAffiliation.Trim().ToLower();
-            booksQuery = booksQuery.Where(b =>
-                b.Owner.Profile != null &&
-                b.Owner.Profile.ChurchName != null &&
-                b.Owner.Profile.ChurchName.ToLower().Contains(churchTerm));
-        }
-
-        return await booksQuery
-            .OrderBy(b => b.Title)
-            .ToListAsync();
     }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Unexpected error searching books with query '{Query}'", query);
-        return new List<Book>();
-    }
-}
 
     /// <summary>
     /// Searches for books near a geographic location within a given radius
@@ -376,15 +374,16 @@ public class BookService : IBookService
         double radiusMiles,
         string? query = null,
         string? genre = null,
-        bool availableOnly = false)
+        bool availableOnly = false,
+        string sortBy = "distance",
+        string sortDirection = "asc")
     {
         _logger.LogInformation(
-            "Searching books near ({Lat},{Lon}) within {Radius} miles - query='{Query}'",
-            latitude, longitude, radiusMiles, query);
+            "Searching books near ({Lat},{Lon}) within {Radius} miles - query='{Query}', sortBy='{SortBy}'",
+            latitude, longitude, radiusMiles, query, sortBy);
 
         try
         {
-            // Start with non-deleted books that have owners with location data
             var booksQuery = _context.Books
                 .Include(b => b.Owner)
                 .ThenInclude(u => u.Profile)
@@ -393,7 +392,6 @@ public class BookService : IBookService
                             b.Owner.Profile.Latitude != null &&
                             b.Owner.Profile.Longitude != null);
 
-            // Apply optional text search
             if (!string.IsNullOrWhiteSpace(query))
             {
                 var searchTerm = query.Trim().ToLower();
@@ -403,7 +401,6 @@ public class BookService : IBookService
                     (b.Isbn != null && b.Isbn.ToLower().Contains(searchTerm)));
             }
 
-            // Apply genre filter
             if (!string.IsNullOrWhiteSpace(genre))
             {
                 if (Enum.TryParse<BookGenre>(genre, ignoreCase: true, out var genreEnum))
@@ -412,11 +409,9 @@ public class BookService : IBookService
                     _logger.LogWarning("SearchBooksNearLocation received unrecognized genre '{Genre}'", genre);
             }
 
-            // Apply availability filter
             if (availableOnly)
                 booksQuery = booksQuery.Where(b => b.IsAvailable);
 
-            // Fetch candidates from DB then calculate distance in memory
             var books = await booksQuery.ToListAsync();
 
             var results = books
@@ -428,14 +423,29 @@ public class BookService : IBookService
                     return new BookSearchResult { Book = b, DistanceMiles = distance };
                 })
                 .Where(r => r.DistanceMiles <= radiusMiles)
-                .OrderBy(r => r.DistanceMiles)
                 .ToList();
 
-            _logger.LogInformation(
-                "Found {Count} books within {Radius} miles of ({Lat},{Lon})",
-                results.Count, radiusMiles, latitude, longitude);
+            // Apply sorting
+            var descending = sortDirection.ToLower() == "desc";
+            return sortBy.ToLower() switch
+            {
+                "title" => descending
+                    ? results.OrderByDescending(r => r.Book.Title).ToList()
+                    : results.OrderBy(r => r.Book.Title).ToList(),
 
-            return results;
+                "author" => descending
+                    ? results.OrderByDescending(r => r.Book.Author).ToList()
+                    : results.OrderBy(r => r.Book.Author).ToList(),
+
+                "dateadded" => descending
+                    ? results.OrderByDescending(r => r.Book.CreatedAt).ToList()
+                    : results.OrderBy(r => r.Book.CreatedAt).ToList(),
+
+                // Default: distance ascending
+                _ => descending
+                    ? results.OrderByDescending(r => r.DistanceMiles).ToList()
+                    : results.OrderBy(r => r.DistanceMiles).ToList()
+            };
         }
         catch (Exception ex)
         {
@@ -446,9 +456,94 @@ public class BookService : IBookService
     }
 
 
+    // -------------------------------------------------------
+// Sorting Helpers
+// -------------------------------------------------------
+
     /// <summary>
-    /// Calculates distance between two coordinates using the Haversine formula
+    /// Applies sort order to a list of books based on the specified sort field and direction.
+    /// Falls back to relevance sorting if an unrecognized sort field is provided.
     /// </summary>
+    /// <param name="books">The list of books to sort</param>
+    /// <param name="sortBy">Sort field: title, author, dateadded, or relevance (default)</param>
+    /// <param name="sortDirection">Sort direction: asc (default) or desc</param>
+    /// <param name="query">Original search query used for relevance scoring</param>
+    private static List<Book> ApplySorting(
+        List<Book> books,
+        string sortBy,
+        string sortDirection,
+        string? query = null)
+    {
+        var descending = sortDirection.ToLower() == "desc";
+
+        return sortBy.ToLower() switch
+        {
+            "title" => descending
+                ? books.OrderByDescending(b => b.Title).ToList()
+                : books.OrderBy(b => b.Title).ToList(),
+
+            "author" => descending
+                ? books.OrderByDescending(b => b.Author).ToList()
+                : books.OrderBy(b => b.Author).ToList(),
+
+            "dateadded" => descending
+                ? books.OrderByDescending(b => b.CreatedAt).ToList()
+                : books.OrderBy(b => b.CreatedAt).ToList(),
+
+            // Default: relevance scoring
+            _ => ApplyRelevanceSort(books, query, descending)
+        };
+    }
+
+    /// <summary>
+    /// Scores and sorts books by relevance to the search query using a simple
+    /// priority system: exact title match (3) > partial title match (2) >
+    /// author match (1) > other matches (0). Falls back to title sort
+    /// when no query is provided.
+    /// </summary>
+    /// <param name="books">The list of books to score and sort</param>
+    /// <param name="query">The search term to score against</param>
+    /// <param name="descending">When true, lowest scores appear first</param>
+    private static List<Book> ApplyRelevanceSort(
+        List<Book> books,
+        string? query,
+        bool descending)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            return books.OrderBy(b => b.Title).ToList();
+
+        var term = query.Trim().ToLower();
+
+        var scored = books.Select(b => new
+        {
+            Book = b,
+            Score = b.Title.ToLower() == term ? 3 : // exact title match
+                b.Title.ToLower().Contains(term) ? 2 : // partial title match
+                b.Author.ToLower().Contains(term) ? 1 : // author match
+                0 // isbn or other match
+        });
+
+        return descending
+            ? scored.OrderBy(x => x.Score).Select(x => x.Book).ToList()
+            : scored.OrderByDescending(x => x.Score).Select(x => x.Book).ToList();
+    }
+
+// -------------------------------------------------------
+// Geographic Helpers
+// -------------------------------------------------------
+
+    /// <summary>
+    /// Calculates the straight-line distance in miles between two geographic
+    /// coordinates using the Haversine formula. This accounts for the curvature
+    /// of the Earth and is accurate for the distances typical in community
+    /// book sharing (up to ~100 miles).
+    /// Note: Returns straight-line distance, not driving distance.
+    /// </summary>
+    /// <param name="lat1">Latitude of the first point in decimal degrees</param>
+    /// <param name="lon1">Longitude of the first point in decimal degrees</param>
+    /// <param name="lat2">Latitude of the second point in decimal degrees</param>
+    /// <param name="lon2">Longitude of the second point in decimal degrees</param>
+    /// <returns>Distance in miles between the two coordinates</returns>
     private static double CalculateDistanceMiles(
         double lat1, double lon1,
         double lat2, double lon2)
@@ -467,5 +562,11 @@ public class BookService : IBookService
         return earthRadiusMiles * c;
     }
 
+    /// <summary>
+    /// Converts an angle in decimal degrees to radians.
+    /// Used internally by the Haversine distance calculation.
+    /// </summary>
+    /// <param name="degrees">Angle in decimal degrees</param>
+    /// <returns>Equivalent angle in radians</returns>
     private static double ToRadians(double degrees) => degrees * Math.PI / 180;
 }

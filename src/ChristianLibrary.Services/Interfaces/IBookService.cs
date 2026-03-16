@@ -51,8 +51,10 @@ public interface IBookService
         string? genre = null,
         bool availableOnly = false,
         string? condition = null,
-        string? churchAffiliation = null);
-    
+        string? churchAffiliation = null,
+        string sortBy = "relevance",
+        string sortDirection = "asc");
+
     /// <summary>
     /// Searches for books near a geographic location within a given radius
     /// </summary>
@@ -62,5 +64,7 @@ public interface IBookService
         double radiusMiles,
         string? query = null,
         string? genre = null,
-        bool availableOnly = false);
+        bool availableOnly = false,
+        string sortBy = "distance",
+        string sortDirection = "asc");
 }

@@ -363,4 +363,36 @@ public class GeoSearchTests
         // Assert
         results.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task SearchBooksNearLocation_SortByTitle_ReturnsAlphabeticalOrder()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedBooksWithLocationsAsync(context);
+        var service = CreateService(context);
+
+        // Act
+        var results = await service.SearchBooksNearLocationAsync(
+            45.5051, -122.6750, radiusMiles: 200, sortBy: "title");
+
+        // Assert
+        results.Should().BeInAscendingOrder(r => r.Book.Title);
+    }
+
+    [Fact]
+    public async Task SearchBooksNearLocation_SortByDistanceDescending_ReturnsFarthestFirst()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedBooksWithLocationsAsync(context);
+        var service = CreateService(context);
+
+        // Act
+        var results = await service.SearchBooksNearLocationAsync(
+            45.5051, -122.6750, radiusMiles: 200, sortBy: "distance", sortDirection: "desc");
+
+        // Assert
+        results.Should().BeInDescendingOrder(r => r.DistanceMiles);
+    }
 }
