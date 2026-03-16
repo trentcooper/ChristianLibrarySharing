@@ -43,22 +43,28 @@ public class BooksController : ControllerBase
     }
 
     /// <summary>
-    /// Get a book by ID
+    /// Get full book detail with owner info, distance, and similar books
     /// </summary>
     [HttpGet("{id}")]
     [AllowAnonymous]
-    public async Task<IActionResult> GetById(int id)
+    [ProducesResponseType(typeof(BookDetailResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetById(
+        int id,
+        [FromQuery] double? lat = null,
+        [FromQuery] double? lon = null)
     {
-        _logger.LogInformation("GET /api/books/{BookId} - Retrieving book", id);
+        _logger.LogInformation("GET /api/books/{BookId} - Retrieving book detail", id);
 
-        var book = await _bookService.GetBookByIdAsync(id);
-        if (book == null)
+        var result = await _bookService.GetBookDetailAsync(id, lat, lon);
+
+        if (result == null)
         {
             _logger.LogWarning("Book {BookId} not found", id);
             return NotFound(new { message = $"Book with ID {id} not found" });
         }
 
-        return Ok(book);
+        return Ok(result);
     }
 
     /// <summary>

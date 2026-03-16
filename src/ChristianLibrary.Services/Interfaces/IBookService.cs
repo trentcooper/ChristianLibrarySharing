@@ -67,4 +67,13 @@ public interface IBookService
         bool availableOnly = false,
         string sortBy = "distance",
         string sortDirection = "asc");
+    
+    /// <summary>
+    /// Returns full book detail with owner info (privacy filtered),
+    /// optional distance, and similar books
+    /// </summary>
+    Task<BookDetailResponse?> GetBookDetailAsync(
+        int bookId,
+        double? callerLatitude = null,
+        double? callerLongitude = null);
 }
