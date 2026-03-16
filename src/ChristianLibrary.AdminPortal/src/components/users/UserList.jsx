@@ -1,5 +1,5 @@
-﻿import { useState, useEffect } from 'react';
-import { userService } from '../../services/userService';
+﻿import {useState, useEffect} from 'react';
+import {userService} from '../../services/userService';
 import LoadingSpinner from '../common/LoadingSpinner';
 
 export default function UserList() {
@@ -36,7 +36,7 @@ export default function UserList() {
         user.name?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    if (loading) return <LoadingSpinner />;
+    if (loading) return <LoadingSpinner/>;
 
     return (
         <div>
@@ -67,9 +67,9 @@ export default function UserList() {
                 boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                 overflow: 'hidden'
             }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <table style={{width: '100%', borderCollapse: 'collapse'}}>
                     <thead>
-                    <tr style={{ background: '#f5f5f5' }}>
+                    <tr style={{background: '#f5f5f5'}}>
                         <th style={tableHeaderStyle}>Name</th>
                         <th style={tableHeaderStyle}>Email</th>
                         <th style={tableHeaderStyle}>Status</th>
@@ -79,7 +79,7 @@ export default function UserList() {
                     </thead>
                     <tbody>
                     {filteredUsers.map(user => (
-                        <tr key={user.id} style={{ borderBottom: '1px solid #eee' }}>
+                        <tr key={user.id} style={{borderBottom: '1px solid #eee'}}>
                             <td style={tableCellStyle}>{user.name || 'N/A'}</td>
                             <td style={tableCellStyle}>{user.email}</td>
                             <td style={tableCellStyle}>

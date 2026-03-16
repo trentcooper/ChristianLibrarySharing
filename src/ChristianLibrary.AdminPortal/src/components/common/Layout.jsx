@@ -1,8 +1,8 @@
-﻿import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+﻿import {Link, useNavigate} from 'react-router-dom';
+import {useAuth} from '../../context/AuthContext';
 
-export default function Layout({ children }) {
-    const { user, logout } = useAuth();
+export default function Layout({children}) {
+    const {user, logout} = useAuth();
     const navigate = useNavigate();
 
     const handleLogout = () => {
@@ -11,7 +11,7 @@ export default function Layout({ children }) {
     };
 
     return (
-        <div style={{ minHeight: '100vh' }}>
+        <div style={{minHeight: '100vh'}}>
             <nav style={{
                 background: '#1976d2',
                 color: 'white',
@@ -20,21 +20,21 @@ export default function Layout({ children }) {
                 justifyContent: 'space-between',
                 alignItems: 'center'
             }}>
-                <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-                    <h1 style={{ margin: 0, fontSize: '1.5rem' }}>Christian Library Admin</h1>
-                    <div style={{ display: 'flex', gap: '1rem' }}>
-                        <Link to="/" style={{ color: 'white', textDecoration: 'none' }}>
+                <div style={{display: 'flex', gap: '2rem', alignItems: 'center'}}>
+                    <h1 style={{margin: 0, fontSize: '1.5rem'}}>Christian Library Admin</h1>
+                    <div style={{display: 'flex', gap: '1rem'}}>
+                        <Link to="/" style={{color: 'white', textDecoration: 'none'}}>
                             Dashboard
                         </Link>
-                        <Link to="/users" style={{ color: 'white', textDecoration: 'none' }}>
+                        <Link to="/users" style={{color: 'white', textDecoration: 'none'}}>
                             Users
                         </Link>
-                        <Link to="/books" style={{ color: 'white', textDecoration: 'none' }}>
+                        <Link to="/books" style={{color: 'white', textDecoration: 'none'}}>
                             Books
                         </Link>
                     </div>
                 </div>
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
                     <span>{user?.email}</span>
                     <button onClick={handleLogout} style={{
                         background: 'white',
@@ -48,7 +48,7 @@ export default function Layout({ children }) {
                     </button>
                 </div>
             </nav>
-            <main style={{ padding: '2rem' }}>
+            <main style={{padding: '2rem'}}>
                 {children}
             </main>
         </div>

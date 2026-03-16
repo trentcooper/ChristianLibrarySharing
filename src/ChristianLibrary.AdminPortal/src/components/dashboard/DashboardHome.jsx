@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+﻿import {useState, useEffect} from 'react';
 import api from '../../services/api';
 import LoadingSpinner from '../common/LoadingSpinner';
 
@@ -21,7 +21,7 @@ export default function DashboardHome() {
         fetchStats();
     }, []);
 
-    if (loading) return <LoadingSpinner />;
+    if (loading) return <LoadingSpinner/>;
 
     return (
         <div>
@@ -58,7 +58,7 @@ export default function DashboardHome() {
     );
 }
 
-function StatCard({ title, value, color }) {
+function StatCard({title, value, color}) {
     return (
         <div style={{
             background: 'white',
@@ -67,10 +67,10 @@ function StatCard({ title, value, color }) {
             boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
             borderLeft: `4px solid ${color}`
         }}>
-            <h3 style={{ margin: '0 0 0.5rem 0', color: '#666', fontSize: '0.9rem' }}>
+            <h3 style={{margin: '0 0 0.5rem 0', color: '#666', fontSize: '0.9rem'}}>
                 {title}
             </h3>
-            <p style={{ margin: 0, fontSize: '2rem', fontWeight: 'bold', color }}>
+            <p style={{margin: 0, fontSize: '2rem', fontWeight: 'bold', color}}>
                 {value}
             </p>
         </div>

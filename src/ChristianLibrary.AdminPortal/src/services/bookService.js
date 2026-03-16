@@ -12,7 +12,7 @@ export const bookService = {
     },
 
     rejectBook: async (id, reason) => {
-        const response = await api.post(`/admin/books/${id}/reject`, { reason });
+        const response = await api.post(`/admin/books/${id}/reject`, {reason});
         return response.data;
     },
 

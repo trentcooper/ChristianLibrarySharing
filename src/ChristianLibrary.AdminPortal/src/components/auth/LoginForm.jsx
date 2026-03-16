@@ -1,13 +1,13 @@
-﻿import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+﻿import {useState} from 'react';
+import {useNavigate} from 'react-router-dom';
+import {useAuth} from '../../context/AuthContext';
 
 export default function LoginForm() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const { login } = useAuth();
+    const {login} = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -41,7 +41,7 @@ export default function LoginForm() {
                 width: '100%',
                 maxWidth: '400px'
             }}>
-                <h1 style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                <h1 style={{textAlign: 'center', marginBottom: '2rem'}}>
                     Admin Login
                 </h1>
 
@@ -58,8 +58,8 @@ export default function LoginForm() {
                 )}
 
                 <form onSubmit={handleSubmit}>
-                    <div style={{ marginBottom: '1rem' }}>
-                        <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                    <div style={{marginBottom: '1rem'}}>
+                        <label style={{display: 'block', marginBottom: '0.5rem'}}>
                             Email
                         </label>
                         <input
@@ -77,8 +77,8 @@ export default function LoginForm() {
                         />
                     </div>
 
-                    <div style={{ marginBottom: '1.5rem' }}>
-                        <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                    <div style={{marginBottom: '1.5rem'}}>
+                        <label style={{display: 'block', marginBottom: '0.5rem'}}>
                             Password
                         </label>
                         <input

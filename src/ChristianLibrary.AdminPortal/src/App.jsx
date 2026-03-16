@@ -1,5 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import {BrowserRouter, Routes, Route, Navigate} from 'react-router-dom';
+import {AuthProvider} from './context/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import Layout from './components/common/Layout';
 import LoginForm from './components/auth/LoginForm';
@@ -12,14 +12,14 @@ function App() {
         <AuthProvider>
             <BrowserRouter>
                 <Routes>
-                    <Route path="/login" element={<LoginForm />} />
+                    <Route path="/login" element={<LoginForm/>}/>
 
                     <Route
                         path="/"
                         element={
                             <ProtectedRoute>
                                 <Layout>
-                                    <DashboardHome />
+                                    <DashboardHome/>
                                 </Layout>
                             </ProtectedRoute>
                         }
@@ -30,7 +30,7 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <Layout>
-                                    <UserList />
+                                    <UserList/>
                                 </Layout>
                             </ProtectedRoute>
                         }
@@ -41,13 +41,13 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <Layout>
-                                    <BookApprovalQueue />
+                                    <BookApprovalQueue/>
                                 </Layout>
                             </ProtectedRoute>
                         }
                     />
 
-                    <Route path="*" element={<Navigate to="/" replace />} />
+                    <Route path="*" element={<Navigate to="/" replace/>}/>
                 </Routes>
             </BrowserRouter>
         </AuthProvider>

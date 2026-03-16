@@ -1,5 +1,5 @@
-﻿import { useState, useEffect } from 'react';
-import { bookService } from '../../services/bookService';
+﻿import {useState, useEffect} from 'react';
+import {bookService} from '../../services/bookService';
 import LoadingSpinner from '../common/LoadingSpinner';
 
 export default function BookApprovalQueue() {
@@ -40,7 +40,7 @@ export default function BookApprovalQueue() {
         }
     };
 
-    if (loading) return <LoadingSpinner />;
+    if (loading) return <LoadingSpinner/>;
 
     return (
         <div>
@@ -76,7 +76,7 @@ export default function BookApprovalQueue() {
     );
 }
 
-function BookCard({ book, onApprove, onReject }) {
+function BookCard({book, onApprove, onReject}) {
     return (
         <div style={{
             background: 'white',
@@ -88,15 +88,15 @@ function BookCard({ book, onApprove, onReject }) {
             alignItems: 'center'
         }}>
             <div>
-                <h3 style={{ margin: '0 0 0.5rem 0' }}>{book.title}</h3>
-                <p style={{ margin: '0 0 0.25rem 0', color: '#666' }}>
+                <h3 style={{margin: '0 0 0.5rem 0'}}>{book.title}</h3>
+                <p style={{margin: '0 0 0.25rem 0', color: '#666'}}>
                     Author: {book.author}
                 </p>
-                <p style={{ margin: 0, color: '#999', fontSize: '0.875rem' }}>
+                <p style={{margin: 0, color: '#999', fontSize: '0.875rem'}}>
                     Submitted: {new Date(book.submittedAt).toLocaleDateString()}
                 </p>
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{display: 'flex', gap: '0.5rem'}}>
                 <button
                     onClick={() => onApprove(book.id)}
                     style={{
