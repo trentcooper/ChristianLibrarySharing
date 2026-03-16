@@ -283,4 +283,52 @@ public class BooksController : ControllerBase
             books = results
         });
     }
+    
+    /// <summary>
+    /// Searches for books near a geographic location
+    /// </summary>
+    [HttpGet("nearby")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SearchBooksNearLocation(
+        [FromQuery] double lat,
+        [FromQuery] double lon,
+        [FromQuery] double radius = 25,
+        [FromQuery] string? q = null,
+        [FromQuery] string? genre = null,
+        [FromQuery] bool availableOnly = false)
+    {
+        if (lat < -90 || lat > 90)
+            return BadRequest(new { message = "Latitude must be between -90 and 90." });
+
+        if (lon < -180 || lon > 180)
+            return BadRequest(new { message = "Longitude must be between -180 and 180." });
+
+        if (radius <= 0 || radius > 100)
+            return BadRequest(new { message = "Radius must be between 1 and 100 miles." });
+
+        _logger.LogInformation(
+            "GET /api/books/nearby - lat={Lat}, lon={Lon}, radius={Radius}, query='{Query}'",
+            lat, lon, radius, q);
+
+        var results = await _bookService.SearchBooksNearLocationAsync(
+            lat, lon, radius, q, genre, availableOnly);
+
+        return Ok(new
+        {
+            latitude = lat,
+            longitude = lon,
+            radiusMiles = radius,
+            query = q,
+            genre,
+            availableOnly,
+            count = results.Count,
+            books = results.Select(r => new
+            {
+                r.Book,
+                distanceMiles = Math.Round(r.DistanceMiles!.Value, 1)
+            })
+        });
+    }
 }

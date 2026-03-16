@@ -169,7 +169,7 @@ public class BookService : IBookService
             return BookResponse.CreateFailure("An unexpected error occurred while updating the book");
         }
     }
-    
+
     /// <summary>
     /// Soft deletes a book — only the owner can delete their book
     /// </summary>
@@ -224,7 +224,7 @@ public class BookService : IBookService
             return BookResponse.CreateFailure("An unexpected error occurred while deleting the book");
         }
     }
-    
+
     /// <summary>
     /// Updates the availability status of a book — only the owner can change availability
     /// </summary>
@@ -275,7 +275,7 @@ public class BookService : IBookService
                 "An unexpected error occurred while updating book availability");
         }
     }
-    
+
     /// <summary>
     /// Returns all books belonging to the authenticated user
     /// </summary>
@@ -296,7 +296,7 @@ public class BookService : IBookService
             return new List<Book>();
         }
     }
-    
+
     public async Task<List<Book>> SearchBooksAsync(string query, string? genre = null, bool availableOnly = false)
     {
         _logger.LogInformation(
@@ -336,4 +336,105 @@ public class BookService : IBookService
             return new List<Book>();
         }
     }
+
+    /// <summary>
+    /// Searches for books near a geographic location within a given radius
+    /// </summary>
+    public async Task<List<BookSearchResult>> SearchBooksNearLocationAsync(
+        double latitude,
+        double longitude,
+        double radiusMiles,
+        string? query = null,
+        string? genre = null,
+        bool availableOnly = false)
+    {
+        _logger.LogInformation(
+            "Searching books near ({Lat},{Lon}) within {Radius} miles - query='{Query}'",
+            latitude, longitude, radiusMiles, query);
+
+        try
+        {
+            // Start with non-deleted books that have owners with location data
+            var booksQuery = _context.Books
+                .Include(b => b.Owner)
+                .ThenInclude(u => u.Profile)
+                .Where(b => !b.IsDeleted && b.IsVisible)
+                .Where(b => b.Owner.Profile != null &&
+                            b.Owner.Profile.Latitude != null &&
+                            b.Owner.Profile.Longitude != null);
+
+            // Apply optional text search
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                var searchTerm = query.Trim().ToLower();
+                booksQuery = booksQuery.Where(b =>
+                    b.Title.ToLower().Contains(searchTerm) ||
+                    b.Author.ToLower().Contains(searchTerm) ||
+                    (b.Isbn != null && b.Isbn.ToLower().Contains(searchTerm)));
+            }
+
+            // Apply genre filter
+            if (!string.IsNullOrWhiteSpace(genre))
+            {
+                if (Enum.TryParse<BookGenre>(genre, ignoreCase: true, out var genreEnum))
+                    booksQuery = booksQuery.Where(b => b.Genre == genreEnum);
+                else
+                    _logger.LogWarning("SearchBooksNearLocation received unrecognized genre '{Genre}'", genre);
+            }
+
+            // Apply availability filter
+            if (availableOnly)
+                booksQuery = booksQuery.Where(b => b.IsAvailable);
+
+            // Fetch candidates from DB then calculate distance in memory
+            var books = await booksQuery.ToListAsync();
+
+            var results = books
+                .Select(b =>
+                {
+                    var ownerLat = (double)b.Owner.Profile!.Latitude!;
+                    var ownerLon = (double)b.Owner.Profile!.Longitude!;
+                    var distance = CalculateDistanceMiles(latitude, longitude, ownerLat, ownerLon);
+                    return new BookSearchResult { Book = b, DistanceMiles = distance };
+                })
+                .Where(r => r.DistanceMiles <= radiusMiles)
+                .OrderBy(r => r.DistanceMiles)
+                .ToList();
+
+            _logger.LogInformation(
+                "Found {Count} books within {Radius} miles of ({Lat},{Lon})",
+                results.Count, radiusMiles, latitude, longitude);
+
+            return results;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Unexpected error searching books near ({Lat},{Lon})", latitude, longitude);
+            return new List<BookSearchResult>();
+        }
+    }
+
+    /// <summary>
+    /// Calculates distance between two coordinates using the Haversine formula
+    /// </summary>
+    private static double CalculateDistanceMiles(
+        double lat1, double lon1,
+        double lat2, double lon2)
+    {
+        const double earthRadiusMiles = 3958.8;
+
+        var dLat = ToRadians(lat2 - lat1);
+        var dLon = ToRadians(lon2 - lon1);
+
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+
+        return earthRadiusMiles * c;
+    }
+
+    private static double ToRadians(double degrees) => degrees * Math.PI / 180;
 }

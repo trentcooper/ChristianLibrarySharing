@@ -47,4 +47,13 @@ public interface IBookService
     /// Returns all books matching the search criteria passed in to the function
     /// </summary>
     Task<List<Book>> SearchBooksAsync(string query, string? genre = null, bool availableOnly = false);
+    
+    Task<List<BookSearchResult>> SearchBooksNearLocationAsync(
+        double latitude,
+        double longitude,
+        double radiusMiles,
+        string? query = null,
+        string? genre = null,
+        bool availableOnly = false);
+    
 }
