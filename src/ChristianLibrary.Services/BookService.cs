@@ -297,45 +297,75 @@ public class BookService : IBookService
         }
     }
 
-    public async Task<List<Book>> SearchBooksAsync(string query, string? genre = null, bool availableOnly = false)
+    /// <summary>
+    /// Returns all books matching the search criteria passed in to the function
+    /// </summary>
+    public async Task<List<Book>> SearchBooksAsync(
+    string query,
+    string? genre = null,
+    bool availableOnly = false,
+    string? condition = null,
+    string? churchAffiliation = null)
+{
+    _logger.LogInformation(
+        "Searching books - query='{Query}', genre='{Genre}', availableOnly={AvailableOnly}, condition='{Condition}', church='{Church}'",
+        query, genre, availableOnly, condition, churchAffiliation);
+
+    try
     {
-        _logger.LogInformation(
-            "Searching books - query='{Query}', genre='{Genre}', availableOnly={AvailableOnly}",
-            query, genre, availableOnly);
+        var searchTerm = query.Trim().ToLower();
 
-        try
+        var booksQuery = _context.Books
+            .Include(b => b.Owner)
+            .ThenInclude(u => u.Profile)
+            .Where(b => !b.IsDeleted)
+            .Where(b =>
+                b.Title.ToLower().Contains(searchTerm) ||
+                b.Author.ToLower().Contains(searchTerm) ||
+                (b.Isbn != null && b.Isbn.ToLower().Contains(searchTerm)));
+
+        // Genre filter
+        if (!string.IsNullOrWhiteSpace(genre))
         {
-            var searchTerm = query.Trim().ToLower();
-
-            var booksQuery = _context.Books
-                .Where(b => !b.IsDeleted)
-                .Where(b =>
-                    b.Title.ToLower().Contains(searchTerm) ||
-                    b.Author.ToLower().Contains(searchTerm) ||
-                    (b.Isbn != null && b.Isbn.ToLower().Contains(searchTerm)));
-
-            // Genre filter - parse string to enum if provided
-            if (!string.IsNullOrWhiteSpace(genre))
-            {
-                if (Enum.TryParse<BookGenre>(genre, ignoreCase: true, out var genreEnum))
-                    booksQuery = booksQuery.Where(b => b.Genre == genreEnum);
-                else
-                    _logger.LogWarning("SearchBooks received unrecognized genre value '{Genre}'", genre);
-            }
-
-            if (availableOnly)
-                booksQuery = booksQuery.Where(b => b.IsAvailable);
-
-            return await booksQuery
-                .OrderBy(b => b.Title)
-                .ToListAsync();
+            if (Enum.TryParse<BookGenre>(genre, ignoreCase: true, out var genreEnum))
+                booksQuery = booksQuery.Where(b => b.Genre == genreEnum);
+            else
+                _logger.LogWarning("SearchBooks received unrecognized genre '{Genre}'", genre);
         }
-        catch (Exception ex)
+
+        // Condition filter
+        if (!string.IsNullOrWhiteSpace(condition))
         {
-            _logger.LogError(ex, "Unexpected error searching books with query '{Query}'", query);
-            return new List<Book>();
+            if (Enum.TryParse<BookCondition>(condition, ignoreCase: true, out var conditionEnum))
+                booksQuery = booksQuery.Where(b => b.Condition == conditionEnum);
+            else
+                _logger.LogWarning("SearchBooks received unrecognized condition '{Condition}'", condition);
         }
+
+        // Availability filter
+        if (availableOnly)
+            booksQuery = booksQuery.Where(b => b.IsAvailable);
+
+        // Church affiliation filter
+        if (!string.IsNullOrWhiteSpace(churchAffiliation))
+        {
+            var churchTerm = churchAffiliation.Trim().ToLower();
+            booksQuery = booksQuery.Where(b =>
+                b.Owner.Profile != null &&
+                b.Owner.Profile.ChurchName != null &&
+                b.Owner.Profile.ChurchName.ToLower().Contains(churchTerm));
+        }
+
+        return await booksQuery
+            .OrderBy(b => b.Title)
+            .ToListAsync();
     }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Unexpected error searching books with query '{Query}'", query);
+        return new List<Book>();
+    }
+}
 
     /// <summary>
     /// Searches for books near a geographic location within a given radius
@@ -414,6 +444,7 @@ public class BookService : IBookService
             return new List<BookSearchResult>();
         }
     }
+
 
     /// <summary>
     /// Calculates distance between two coordinates using the Haversine formula

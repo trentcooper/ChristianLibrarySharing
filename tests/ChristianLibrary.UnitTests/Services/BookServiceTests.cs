@@ -37,13 +37,43 @@ public class BookServiceTests
 
         return new BookService(context, userManagerMock.Object, logger);
     }
-    
+
     // -------------------------------------------------------
     // Seed helper — adds sample books to the in-memory DB
     // -------------------------------------------------------
 
     private static async Task SeedBooksAsync(ApplicationDbContext context)
     {
+        var user1 = new ApplicationUser
+        {
+            Id = "user-1",
+            UserName = "user1@test.com",
+            Email = "user1@test.com",
+            IsActive = true,
+            Profile = new UserProfile
+            {
+                FirstName = "User",
+                LastName = "One",
+                UserId = "user-1"
+            }
+        };
+
+        var user2 = new ApplicationUser
+        {
+            Id = "user-2",
+            UserName = "user2@test.com",
+            Email = "user2@test.com",
+            IsActive = true,
+            Profile = new UserProfile
+            {
+                FirstName = "User",
+                LastName = "Two",
+                UserId = "user-2"
+            }
+        };
+
+        context.Users.AddRange(user1, user2);
+
         context.Books.AddRange(
             new Book
             {
@@ -51,7 +81,9 @@ public class BookServiceTests
                 Author = "C.S. Lewis",
                 Isbn = "9780060652920",
                 Genre = BookGenre.Theology,
+                Condition = BookCondition.Good,
                 OwnerId = "user-1",
+                Owner = user1,
                 IsAvailable = true,
                 IsDeleted = false
             },
@@ -61,7 +93,9 @@ public class BookServiceTests
                 Author = "C.S. Lewis",
                 Isbn = "9780060652927",
                 Genre = BookGenre.Theology,
+                Condition = BookCondition.Good,
                 OwnerId = "user-1",
+                Owner = user1,
                 IsAvailable = false,
                 IsDeleted = false
             },
@@ -71,7 +105,9 @@ public class BookServiceTests
                 Author = "David Platt",
                 Isbn = "9781601422217",
                 Genre = BookGenre.ChristianLiving,
+                Condition = BookCondition.Good,
                 OwnerId = "user-2",
+                Owner = user2,
                 IsAvailable = true,
                 IsDeleted = false
             },
@@ -81,9 +117,11 @@ public class BookServiceTests
                 Author = "Some Author",
                 Isbn = "9780000000000",
                 Genre = BookGenre.ChristianLiving,
+                Condition = BookCondition.Poor,
                 OwnerId = "user-1",
+                Owner = user1,
                 IsAvailable = true,
-                IsDeleted = true  // should never appear in results
+                IsDeleted = true
             }
         );
 
@@ -253,4 +291,183 @@ public class BookServiceTests
         // Assert
         results.Should().BeEmpty();
     }
+    
+    // -------------------------------------------------------
+// SearchBooksAsync Advanced Filter Tests (US-05.03)
+// -------------------------------------------------------
+
+[Fact]
+public async Task SearchBooksAsync_ByCondition_ReturnsOnlyMatchingCondition()
+{
+    // Arrange
+    await using var context = CreateInMemoryContext();
+    await SeedBooksAsync(context);
+
+    context.Books.Add(new Book
+    {
+        Title = "Well Worn Book",
+        Author = "John Piper",  // unique author not in seed data
+        Genre = BookGenre.Theology,
+        Condition = BookCondition.Acceptable,
+        OwnerId = "user-1",
+        Owner = context.Users.First(u => u.Id == "user-1"),
+        IsAvailable = true,
+        IsDeleted = false
+    });
+    await context.SaveChangesAsync();
+
+    var service = CreateService(context);
+
+    // Act - search by unique author + condition filter
+    var results = await service.SearchBooksAsync("piper", condition: "Acceptable");
+
+    // Assert
+    results.Should().HaveCount(1);
+    results.First().Title.Should().Be("Well Worn Book");
+}
+
+[Fact]
+public async Task SearchBooksAsync_WithInvalidCondition_ReturnsResultsIgnoringConditionFilter()
+{
+    // Arrange
+    await using var context = CreateInMemoryContext();
+    await SeedBooksAsync(context);
+    var service = CreateService(context);
+
+    // Act
+    var results = await service.SearchBooksAsync("lewis", condition: "NotARealCondition");
+
+    // Assert
+    results.Should().HaveCount(2);
+}
+
+[Fact]
+public async Task SearchBooksAsync_ByChurchAffiliation_ReturnsOnlyMatchingBooks()
+{
+    // Arrange
+    await using var context = CreateInMemoryContext();
+
+    var userWithChurch = new ApplicationUser
+    {
+        Id = "user-church",
+        UserName = "church@test.com",
+        Email = "church@test.com",
+        IsActive = true,
+        Profile = new UserProfile
+        {
+            FirstName = "Church",
+            LastName = "User",
+            UserId = "user-church",
+            ChurchName = "Grace Community Church"
+        }
+    };
+
+    context.Users.Add(userWithChurch);
+
+    context.Books.AddRange(
+        new Book
+        {
+            Title = "Mere Christianity",
+            Author = "C.S. Lewis",
+            Genre = BookGenre.Theology,
+            OwnerId = "user-church",
+            Owner = userWithChurch,
+            IsAvailable = true,
+            IsDeleted = false
+        },
+        new Book
+        {
+            Title = "Radical",
+            Author = "David Platt",
+            Genre = BookGenre.ChristianLiving,
+            OwnerId = "user-church",
+            Owner = userWithChurch,
+            IsAvailable = true,
+            IsDeleted = false
+        }
+    );
+    await context.SaveChangesAsync();
+
+    var service = CreateService(context);
+
+    // Act
+    var results = await service.SearchBooksAsync("", churchAffiliation: "Grace");
+
+    // Assert
+    results.Should().HaveCount(2);
+    results.Should().OnlyContain(b => b.OwnerId == "user-church");
+}
+
+[Fact]
+public async Task SearchBooksAsync_MultipleFilters_AppliedSimultaneously()
+{
+    // Arrange
+    await using var context = CreateInMemoryContext();
+
+    var userWithChurch = new ApplicationUser
+    {
+        Id = "user-church",
+        UserName = "church@test.com",
+        Email = "church@test.com",
+        IsActive = true,
+        Profile = new UserProfile
+        {
+            FirstName = "Church",
+            LastName = "User",
+            UserId = "user-church",
+            ChurchName = "Grace Community Church"
+        }
+    };
+
+    context.Users.Add(userWithChurch);
+
+    context.Books.AddRange(
+        new Book
+        {
+            Title = "Mere Christianity",
+            Author = "C.S. Lewis",
+            Genre = BookGenre.Theology,
+            Condition = BookCondition.Good,
+            OwnerId = "user-church",
+            Owner = userWithChurch,
+            IsAvailable = true,
+            IsDeleted = false
+        },
+        new Book
+        {
+            Title = "The Screwtape Letters",
+            Author = "C.S. Lewis",
+            Genre = BookGenre.Theology,
+            Condition = BookCondition.Acceptable,
+            OwnerId = "user-church",
+            Owner = userWithChurch,
+            IsAvailable = true,
+            IsDeleted = false
+        },
+        new Book
+        {
+            Title = "Radical",
+            Author = "David Platt",
+            Genre = BookGenre.ChristianLiving,
+            Condition = BookCondition.Good,
+            OwnerId = "user-church",
+            Owner = userWithChurch,
+            IsAvailable = true,
+            IsDeleted = false
+        }
+    );
+    await context.SaveChangesAsync();
+
+    var service = CreateService(context);
+
+    // Act - search lewis + Theology genre + Good condition simultaneously
+    var results = await service.SearchBooksAsync(
+        "lewis",
+        genre: "Theology",
+        condition: "Good");
+
+    // Assert - only Mere Christianity matches all three filters
+    results.Should().HaveCount(1);
+    results.First().Title.Should().Be("Mere Christianity");
+}
 }

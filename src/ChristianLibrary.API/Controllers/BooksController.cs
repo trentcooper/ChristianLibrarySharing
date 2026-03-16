@@ -18,7 +18,7 @@ public class BooksController : ControllerBase
     private readonly IBookService _bookService;
     private readonly IIsbnLookupService _isbnLookupService;
     private readonly ILogger<BooksController> _logger;
-    
+
 
     public BooksController(
         IBookService bookService,
@@ -93,7 +93,7 @@ public class BooksController : ControllerBase
 
         return CreatedAtAction(nameof(GetById), new { id = response.BookId }, response);
     }
-    
+
     /// <summary>
     /// Looks up book details by Isbn from Open Library
     /// </summary>
@@ -116,7 +116,7 @@ public class BooksController : ControllerBase
 
         return Ok(result);
     }
-    
+
     /// <summary>
     /// Updates an existing book in the authenticated user's catalog
     /// </summary>
@@ -158,7 +158,7 @@ public class BooksController : ControllerBase
 
         return Ok(response);
     }
-    
+
     /// <summary>
     /// Soft deletes a book from the authenticated user's catalog
     /// </summary>
@@ -193,7 +193,7 @@ public class BooksController : ControllerBase
 
         return Ok(response);
     }
-    
+
     /// <summary>
     /// Updates the availability status of a book
     /// </summary>
@@ -228,7 +228,7 @@ public class BooksController : ControllerBase
 
         return Ok(response);
     }
-    
+
     /// <summary>
     /// Returns all books in the authenticated user's catalog
     /// </summary>
@@ -252,9 +252,9 @@ public class BooksController : ControllerBase
             books
         });
     }
-    
+
     /// <summary>
-    /// Searches books by title, author, Isbn, or genre
+    /// Searches books by title, author, ISBN, genre, condition, or church affiliation
     /// </summary>
     [HttpGet("search")]
     [AllowAnonymous]
@@ -263,27 +263,32 @@ public class BooksController : ControllerBase
     public async Task<IActionResult> SearchBooks(
         [FromQuery] string q,
         [FromQuery] string? genre = null,
-        [FromQuery] bool availableOnly = false)
+        [FromQuery] bool availableOnly = false,
+        [FromQuery] string? condition = null,
+        [FromQuery] string? churchAffiliation = null)
     {
         if (string.IsNullOrWhiteSpace(q))
             return BadRequest(new { message = "Search query 'q' is required." });
 
         _logger.LogInformation(
-            "GET /api/books/search - query='{Query}', genre='{Genre}', availableOnly={AvailableOnly}",
-            q, genre, availableOnly);
+            "GET /api/books/search - query='{Query}', genre='{Genre}', availableOnly={AvailableOnly}, condition='{Condition}', church='{Church}'",
+            q, genre, availableOnly, condition, churchAffiliation);
 
-        var results = await _bookService.SearchBooksAsync(q, genre, availableOnly);
+        var results = await _bookService.SearchBooksAsync(
+            q, genre, availableOnly, condition, churchAffiliation);
 
         return Ok(new
         {
             query = q,
             genre,
             availableOnly,
+            condition,
+            churchAffiliation,
             count = results.Count,
             books = results
         });
     }
-    
+
     /// <summary>
     /// Searches for books near a geographic location
     /// </summary>

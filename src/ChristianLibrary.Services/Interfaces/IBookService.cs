@@ -42,12 +42,20 @@ public interface IBookService
     /// Returns all books belonging to the authenticated user
     /// </summary>
     Task<List<Book>> GetMyBooksAsync(string ownerId);
-    
+
     /// <summary>
     /// Returns all books matching the search criteria passed in to the function
     /// </summary>
-    Task<List<Book>> SearchBooksAsync(string query, string? genre = null, bool availableOnly = false);
+    Task<List<Book>> SearchBooksAsync(
+        string query,
+        string? genre = null,
+        bool availableOnly = false,
+        string? condition = null,
+        string? churchAffiliation = null);
     
+    /// <summary>
+    /// Searches for books near a geographic location within a given radius
+    /// </summary>
     Task<List<BookSearchResult>> SearchBooksNearLocationAsync(
         double latitude,
         double longitude,
@@ -55,5 +63,4 @@ public interface IBookService
         string? query = null,
         string? genre = null,
         bool availableOnly = false);
-    
 }
