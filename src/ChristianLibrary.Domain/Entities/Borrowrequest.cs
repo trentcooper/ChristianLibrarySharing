@@ -5,7 +5,7 @@ namespace ChristianLibrary.Domain.Entities
 {
     /// <summary>
     /// Represents a request to borrow a book
-    /// Maps to US-05.01: Create borrow request data model
+    /// Maps to US-06.01: Create borrow request data model
     /// </summary>
     public class BorrowRequest : BaseEntity
     {

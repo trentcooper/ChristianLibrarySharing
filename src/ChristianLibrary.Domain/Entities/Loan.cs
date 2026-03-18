@@ -5,7 +5,7 @@ namespace ChristianLibrary.Domain.Entities
 {
     /// <summary>
     /// Represents an active loan of a book
-    /// Maps to US-05.01: Create borrow request data model (loan tracking)
+    /// Maps to US-06.01: Create borrow request data model (loan tracking)
     /// </summary>
     public class Loan : BaseEntity
     {
