@@ -194,6 +194,9 @@ try
 
     // Isbn Lookup Service
     builder.Services.AddHttpClient<IIsbnLookupService, IsbnLookupService>();
+    
+    // Borrow Request Server
+    builder.Services.AddScoped<IBorrowRequestService, BorrowRequestService>();
 
     WebApplication app;
     try
