@@ -115,7 +115,7 @@ public class BorrowRequestsController : ControllerBase
     // -------------------------------------------------------
 
     /// <summary>
-    /// Approves a pending borrow request and creates an active loan
+    /// Approves a pending borrow request
     /// </summary>
     [HttpPost("{id}/approve")]
     [ProducesResponseType(typeof(BorrowRequestResponse), StatusCodes.Status200OK)]
@@ -177,6 +177,45 @@ public class BorrowRequestsController : ControllerBase
         {
             _logger.LogWarning(
                 "DenyRequest failed for request {RequestId} by lender {LenderId}: {Message}",
+                id, lenderId, response.Message);
+
+            if (response.Message.Contains("permission"))
+                return StatusCode(StatusCodes.Status403Forbidden, response);
+
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    // -------------------------------------------------------
+    // US-06.06: Mark book as picked up/borrowed
+    // -------------------------------------------------------
+
+    /// <summary>
+    /// Marks a book as picked up by the borrower, creating an active loan
+    /// </summary>
+    [HttpPost("{id}/pickup")]
+    [ProducesResponseType(typeof(BorrowRequestResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(BorrowRequestResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(BorrowRequestResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> MarkPickedUp(int id, [FromBody] MarkPickedUpRequest request)
+    {
+        var lenderId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(lenderId))
+            return Unauthorized();
+
+        _logger.LogInformation(
+            "POST /api/borrow-requests/{RequestId}/pickup - LenderId={LenderId}",
+            id, lenderId);
+
+        var response = await _borrowRequestService.MarkPickedUpAsync(id, lenderId, request);
+
+        if (!response.Success)
+        {
+            _logger.LogWarning(
+                "MarkPickedUp failed for request {RequestId} by lender {LenderId}: {Message}",
                 id, lenderId, response.Message);
 
             if (response.Message.Contains("permission"))

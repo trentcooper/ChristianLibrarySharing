@@ -78,12 +78,21 @@ namespace ChristianLibrary.Domain.Entities
         /// </summary>
         [MaxLength(1000)]
         public string? BorrowerNotes { get; set; }
+        
+        
+        // ── Condition Tracking ─────────────────────────────────────────────────
 
         /// <summary>
-        /// Condition of book at return (for tracking damage)
+        /// Condition of book at checkout (recorded by lender at pickup)
         /// </summary>
-        public BookCondition? ReturnCondition { get; set; }
+        public BookCondition? ConditionAtCheckout { get; set; }
 
+        /// <summary>
+        /// Condition of book at return (recorded by lender at return)
+        /// Maps to US-06.07
+        /// </summary>
+        public BookCondition? ConditionAtReturn { get; set; }
+        
         /// <summary>
         /// Navigation property to the book
         /// </summary>

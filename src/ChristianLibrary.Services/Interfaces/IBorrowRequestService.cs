@@ -33,6 +33,15 @@ public interface IBorrowRequestService
         string? responseMessage = null);
 
     /// <summary>
+    /// Marks a book as picked up by the borrower, creating an active loan
+    /// Maps to US-06.06: Mark book as picked up/borrowed
+    /// </summary>
+    Task<BorrowRequestResponse> MarkPickedUpAsync(
+        int borrowRequestId,
+        string lenderId,
+        MarkPickedUpRequest request);
+
+    /// <summary>
     /// Denies a borrow request
     /// </summary>
     Task<BorrowRequestResponse> DenyRequestAsync(

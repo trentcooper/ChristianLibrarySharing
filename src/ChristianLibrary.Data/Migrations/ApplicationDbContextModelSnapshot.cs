@@ -354,6 +354,12 @@ namespace ChristianLibrary.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<int?>("ConditionAtCheckout")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ConditionAtReturn")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -396,9 +402,6 @@ namespace ChristianLibrary.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);
-
-                    b.Property<int?>("ReturnCondition")
-                        .HasColumnType("int");
 
                     b.Property<DateTime?>("ReturnedDate")
                         .HasColumnType("datetime2");

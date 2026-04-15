@@ -64,8 +64,11 @@ namespace ChristianLibrary.Data.Configurations
 
             builder.Property(l => l.BorrowerNotes)
                 .HasMaxLength(1000);
-
-            builder.Property(l => l.ReturnCondition)
+            
+            builder.Property(l => l.ConditionAtCheckout)
+                .HasConversion<int>();
+            
+            builder.Property(l => l.ConditionAtReturn)
                 .HasConversion<int>();
 
             // Computed properties (ignored - calculated in code)

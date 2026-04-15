@@ -201,7 +201,6 @@ public class BorrowRequestService : IBorrowRequestService
         try
         {
             var borrowRequest = await _context.BorrowRequests
-                .Include(r => r.Book)
                 .FirstOrDefaultAsync(r => r.Id == borrowRequestId && !r.IsDeleted);
 
             if (borrowRequest == null)
@@ -221,32 +220,15 @@ public class BorrowRequestService : IBorrowRequestService
             borrowRequest.RespondedAt = DateTime.UtcNow;
             borrowRequest.UpdatedAt = DateTime.UtcNow;
 
-            // Create the loan
-            var loan = new Loan
-            {
-                BookId = borrowRequest.BookId,
-                BorrowerId = borrowRequest.BorrowerId,
-                LenderId = borrowRequest.LenderId,
-                BorrowRequestId = borrowRequest.Id,
-                Status = LoanStatus.Active,
-                StartDate = borrowRequest.RequestedStartDate,
-                DueDate = borrowRequest.RequestedEndDate,
-                CreatedAt = DateTime.UtcNow
-            };
 
-            // Mark book as unavailable
-            borrowRequest.Book.IsAvailable = false;
-            borrowRequest.Book.UpdatedAt = DateTime.UtcNow;
-
-            _context.Loans.Add(loan);
             await _context.SaveChangesAsync();
 
             _logger.LogInformation(
-                "BorrowRequest {RequestId} approved, Loan {LoanId} created",
-                borrowRequestId, loan.Id);
+                "BorrowRequest {RequestId} approved by lender {LenderId}",
+                borrowRequestId, lenderId);
 
             return BorrowRequestResponse.CreateSuccess(
-                "Request approved successfully. A loan has been created.",
+                "Request approved. The borrower will be notified to arrange pickup.",
                 borrowRequest.Id);
         }
         catch (Exception ex)
@@ -257,7 +239,7 @@ public class BorrowRequestService : IBorrowRequestService
                 "An unexpected error occurred while approving the request.");
         }
     }
-
+    
     // -------------------------------------------------------
     // US-06.05: Deny Request
     // -------------------------------------------------------
@@ -312,7 +294,82 @@ public class BorrowRequestService : IBorrowRequestService
                 "An unexpected error occurred while denying the request.");
         }
     }
+    
+        // -------------------------------------------------------
+    // US-06.06: Mark Book as Picked Up
+    // -------------------------------------------------------
 
+    /// <summary>
+    /// Marks a book as picked up by the borrower, creating an active loan.
+    /// Only the lender can mark pickup. Request must be in Approved status.
+    /// Records book condition at checkout for dispute resolution.
+    /// </summary>
+    public async Task<BorrowRequestResponse> MarkPickedUpAsync(
+        int borrowRequestId,
+        string lenderId,
+        MarkPickedUpRequest request)
+    {
+        _logger.LogInformation(
+            "MarkPickedUp - RequestId={RequestId}, LenderId={LenderId}",
+            borrowRequestId, lenderId);
+
+        try
+        {
+            var borrowRequest = await _context.BorrowRequests
+                .Include(r => r.Book)
+                .FirstOrDefaultAsync(r => r.Id == borrowRequestId && !r.IsDeleted);
+
+            if (borrowRequest == null)
+                return BorrowRequestResponse.CreateFailure("Borrow request not found.");
+
+            if (borrowRequest.LenderId != lenderId)
+                return BorrowRequestResponse.CreateFailure(
+                    "You do not have permission to mark this request as picked up.");
+
+            if (borrowRequest.Status != BorrowRequestStatus.Approved)
+                return BorrowRequestResponse.CreateFailure(
+                    $"This request cannot be marked as picked up as it is currently {borrowRequest.Status}.");
+
+            // Create the loan
+            var loan = new Loan
+            {
+                BookId = borrowRequest.BookId,
+                BorrowerId = borrowRequest.BorrowerId,
+                LenderId = borrowRequest.LenderId,
+                BorrowRequestId = borrowRequest.Id,
+                Status = LoanStatus.Active,
+                StartDate = DateTime.UtcNow,
+                DueDate = borrowRequest.RequestedEndDate,
+                ConditionAtCheckout = request.ConditionAtCheckout,
+                LenderNotes = request.LenderNotes?.Trim(),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            // Mark book as unavailable and update condition
+            borrowRequest.Book.IsAvailable = false;
+            borrowRequest.Book.Condition = request.ConditionAtCheckout;
+            borrowRequest.Book.UpdatedAt = DateTime.UtcNow;
+
+            _context.Loans.Add(loan);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "BorrowRequest {RequestId} picked up, Loan {LoanId} created for book {BookId}",
+                borrowRequestId, loan.Id, borrowRequest.BookId);
+
+            return BorrowRequestResponse.CreateSuccess(
+                "Book marked as picked up. Loan is now active.",
+                borrowRequest.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Unexpected error marking pickup for request {RequestId}", borrowRequestId);
+            return BorrowRequestResponse.CreateFailure(
+                "An unexpected error occurred while marking the book as picked up.");
+        }
+    }
+    
     // -------------------------------------------------------
     // US-06.12: Cancel Request
     // -------------------------------------------------------
