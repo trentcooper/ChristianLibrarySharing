@@ -35,7 +35,8 @@ public class LoanServiceTests
     // Seed helper — creates a complete loan scenario
     // -------------------------------------------------------
 
-    private static async Task<(ApplicationUser lender, ApplicationUser borrower, Book book, BorrowRequest borrowRequest, Loan loan)>
+    private static async
+        Task<(ApplicationUser lender, ApplicationUser borrower, Book book, BorrowRequest borrowRequest, Loan loan)>
         SeedAsync(ApplicationDbContext context, LoanStatus loanStatus = LoanStatus.Active)
     {
         var lender = new ApplicationUser
@@ -119,8 +120,7 @@ public class LoanServiceTests
         var service = CreateService(context);
         var request = new MarkReturnedRequest
         {
-            ConditionAtReturn = BookCondition.Good,
-            BorrowerNotes = "Great book, thank you!"
+            ConditionAtReturn = BookCondition.Good, BorrowerNotes = "Great book, thank you!"
         };
 
         // Act
@@ -272,5 +272,261 @@ public class LoanServiceTests
         var updatedLoan = await context.Loans.FindAsync(loan.Id);
         updatedLoan!.ReturnedDate.Should().BeOnOrAfter(before);
         updatedLoan.ReturnedDate.Should().BeOnOrBefore(DateTime.UtcNow);
+    }
+
+    // -------------------------------------------------------
+// GetMyBorrowsAsync Tests (US-06.08)
+// -------------------------------------------------------
+
+    [Fact]
+    public async Task GetMyBorrowsAsync_ReturnsOnlyBorrowersLoans()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (_, _, _, _, loan) = await SeedAsync(context);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetMyBorrowsAsync("borrower-1", new LoanQuery());
+
+        // Assert
+        result.Items.Should().HaveCount(1);
+        result.Items.First().BorrowerId.Should().Be("borrower-1");
+    }
+
+    [Fact]
+    public async Task GetMyBorrowsAsync_ReturnsEmptyList_WhenNoBorrows()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetMyBorrowsAsync("unknown-user", new LoanQuery());
+
+        // Assert
+        result.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetMyBorrowsAsync_FilterByStatus_ReturnsOnlyMatchingStatus()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (_, _, _, _, loan) = await SeedAsync(context, LoanStatus.Returned);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetMyBorrowsAsync("borrower-1", new LoanQuery { Status = LoanStatus.Active });
+
+        // Assert
+        result.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetMyBorrowsAsync_FilterByStatus_ReturnsMatchingLoans()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context, LoanStatus.Returned);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetMyBorrowsAsync("borrower-1", new LoanQuery { Status = LoanStatus.Returned });
+
+        // Assert
+        result.Items.Should().HaveCount(1);
+        result.Items.First().Status.Should().Be(LoanStatus.Returned);
+    }
+
+    [Fact]
+    public async Task GetMyBorrowsAsync_Pagination_ReturnsCorrectPage()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (lender, borrower, _, borrowRequest, _) = await SeedAsync(context);
+
+        // Add a second book and loan
+        var book2 = new Book
+        {
+            Title = "The Screwtape Letters",
+            Author = "C.S. Lewis",
+            Genre = BookGenre.Theology,
+            Condition = BookCondition.Good,
+            OwnerId = "lender-1",
+            Owner = lender,
+            IsAvailable = false,
+            IsDeleted = false
+        };
+        context.Books.Add(book2);
+        await context.SaveChangesAsync();
+
+        context.Loans.Add(new Loan
+        {
+            BookId = book2.Id,
+            BorrowerId = "borrower-1",
+            LenderId = "lender-1",
+            Status = LoanStatus.Active,
+            StartDate = DateTime.UtcNow.AddDays(-7),
+            DueDate = DateTime.UtcNow.AddDays(23),
+            CreatedAt = DateTime.UtcNow.AddDays(-7)
+        });
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context);
+
+        // Act — page 1 with pageSize 1
+        var result = await service.GetMyBorrowsAsync("borrower-1", new LoanQuery { Page = 1, PageSize = 1 });
+
+        // Assert
+        result.Items.Should().HaveCount(1);
+        result.TotalCount.Should().Be(2);
+        result.TotalPages.Should().Be(2);
+        result.HasNextPage.Should().BeTrue();
+        result.HasPreviousPage.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetMyBorrowsAsync_Pagination_SecondPageReturnsRemainingItems()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (lender, _, _, _, _) = await SeedAsync(context);
+
+        var book2 = new Book
+        {
+            Title = "The Screwtape Letters",
+            Author = "C.S. Lewis",
+            Genre = BookGenre.Theology,
+            Condition = BookCondition.Good,
+            OwnerId = "lender-1",
+            Owner = lender,
+            IsAvailable = false,
+            IsDeleted = false
+        };
+        context.Books.Add(book2);
+        await context.SaveChangesAsync();
+
+        context.Loans.Add(new Loan
+        {
+            BookId = book2.Id,
+            BorrowerId = "borrower-1",
+            LenderId = "lender-1",
+            Status = LoanStatus.Active,
+            StartDate = DateTime.UtcNow.AddDays(-7),
+            DueDate = DateTime.UtcNow.AddDays(23),
+            CreatedAt = DateTime.UtcNow.AddDays(-7)
+        });
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context);
+
+        // Act — page 2 with pageSize 1
+        var result = await service.GetMyBorrowsAsync("borrower-1", new LoanQuery { Page = 2, PageSize = 1 });
+
+        // Assert
+        result.Items.Should().HaveCount(1);
+        result.TotalCount.Should().Be(2);
+        result.HasNextPage.Should().BeFalse();
+        result.HasPreviousPage.Should().BeTrue();
+    }
+
+// -------------------------------------------------------
+// GetMyLoansAsync Tests (US-06.09)
+// -------------------------------------------------------
+
+    [Fact]
+    public async Task GetMyLoansAsync_ReturnsOnlyLendersLoans()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetMyLoansAsync("lender-1", new LoanQuery());
+
+        // Assert
+        result.Items.Should().HaveCount(1);
+        result.Items.First().LenderId.Should().Be("lender-1");
+    }
+
+    [Fact]
+    public async Task GetMyLoansAsync_ReturnsEmptyList_WhenNoLoans()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetMyLoansAsync("unknown-user", new LoanQuery());
+
+        // Assert
+        result.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetMyLoansAsync_FilterByStatus_ReturnsOnlyMatchingStatus()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context, LoanStatus.Active);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetMyLoansAsync("lender-1", new LoanQuery { Status = LoanStatus.Returned });
+
+        // Assert
+        result.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetMyLoansAsync_NoStatusFilter_ReturnsAllStatuses()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (lender, borrower, _, _, _) = await SeedAsync(context, LoanStatus.Active);
+
+        // Add a returned loan
+        var book2 = new Book
+        {
+            Title = "The Screwtape Letters",
+            Author = "C.S. Lewis",
+            Genre = BookGenre.Theology,
+            Condition = BookCondition.Good,
+            OwnerId = "lender-1",
+            Owner = lender,
+            IsAvailable = true,
+            IsDeleted = false
+        };
+        context.Books.Add(book2);
+        await context.SaveChangesAsync();
+
+        context.Loans.Add(new Loan
+        {
+            BookId = book2.Id,
+            BorrowerId = "borrower-1",
+            LenderId = "lender-1",
+            Status = LoanStatus.Returned,
+            StartDate = DateTime.UtcNow.AddDays(-30),
+            DueDate = DateTime.UtcNow.AddDays(-1),
+            ReturnedDate = DateTime.UtcNow.AddDays(-2),
+            CreatedAt = DateTime.UtcNow.AddDays(-30)
+        });
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context);
+
+        // Act — no status filter
+        var result = await service.GetMyLoansAsync("lender-1", new LoanQuery());
+
+        // Assert — both Active and Returned loans returned
+        result.Items.Should().HaveCount(2);
+        result.TotalCount.Should().Be(2);
     }
 }

@@ -1,4 +1,5 @@
-﻿using ChristianLibrary.Services.DTOs.Loans;
+﻿using ChristianLibrary.Services.DTOs.Common;
+using ChristianLibrary.Services.DTOs.Loans;
 
 namespace ChristianLibrary.Services.Interfaces;
 
@@ -15,4 +16,20 @@ public interface ILoanService
         int loanId,
         string lenderId,
         MarkReturnedRequest request);
+
+    /// <summary>
+    /// Gets all loans where the authenticated user is the borrower
+    /// Maps to US-06.08: View my active borrows (as borrower)
+    /// </summary>
+    Task<PagedResult<LoanSummary>> GetMyBorrowsAsync(
+        string borrowerId,
+        LoanQuery query);
+
+    /// <summary>
+    /// Gets all loans where the authenticated user is the lender
+    /// Maps to US-06.09: View my active loans (as owner)
+    /// </summary>
+    Task<PagedResult<LoanSummary>> GetMyLoansAsync(
+        string lenderId,
+        LoanQuery query);
 }

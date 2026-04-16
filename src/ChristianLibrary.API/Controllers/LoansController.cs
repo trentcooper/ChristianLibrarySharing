@@ -3,6 +3,7 @@ using ChristianLibrary.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using ChristianLibrary.Services.DTOs.Common;
 
 namespace ChristianLibrary.API.Controllers;
 
@@ -62,5 +63,53 @@ public class LoansController : ControllerBase
         }
 
         return Ok(response);
+    }
+    
+    // -------------------------------------------------------
+    // US-06.08: View my borrows (as borrower)
+    // -------------------------------------------------------
+
+    /// <summary>
+    /// Returns all loans where the authenticated user is the borrower
+    /// </summary>
+    [HttpGet("my-borrows")]
+    [ProducesResponseType(typeof(PagedResult<LoanSummary>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetMyBorrows([FromQuery] LoanQuery query)
+    {
+        var borrowerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(borrowerId))
+            return Unauthorized();
+
+        _logger.LogInformation(
+            "GET /api/loans/my-borrows - BorrowerId={BorrowerId}", borrowerId);
+
+        var result = await _loanService.GetMyBorrowsAsync(borrowerId, query);
+
+        return Ok(result);
+    }
+
+    // -------------------------------------------------------
+    // US-06.09: View my loans (as lender/owner)
+    // -------------------------------------------------------
+
+    /// <summary>
+    /// Returns all loans where the authenticated user is the lender
+    /// </summary>
+    [HttpGet("my-loans")]
+    [ProducesResponseType(typeof(PagedResult<LoanSummary>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetMyLoans([FromQuery] LoanQuery query)
+    {
+        var lenderId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(lenderId))
+            return Unauthorized();
+
+        _logger.LogInformation(
+            "GET /api/loans/my-loans - LenderId={LenderId}", lenderId);
+
+        var result = await _loanService.GetMyLoansAsync(lenderId, query);
+
+        return Ok(result);
     }
 }
