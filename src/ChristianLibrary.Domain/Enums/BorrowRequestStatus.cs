@@ -28,6 +28,11 @@
         /// <summary>
         /// Request has expired without response
         /// </summary>
-        Expired = 5
+        Expired = 5,
+        
+        /// <summary>
+        /// Borrow request has completed the full lifecycle - book has been returned
+        /// </summary>
+        Completed = 6
     }
 }

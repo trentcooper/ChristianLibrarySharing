@@ -157,6 +157,8 @@ try
     builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<IJwtService, JwtService>();
     builder.Services.AddScoped<IBookService, BookService>();
+    builder.Services.AddScoped<IBorrowRequestService, BorrowRequestService>();
+    builder.Services.AddScoped<ILoanService, LoanService>();
     
     // Register ImageSharp-based image processing service
     builder.Services.AddScoped<IImageProcessingService, ImageProcessingService>();
