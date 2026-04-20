@@ -239,21 +239,21 @@ public class BorrowRequestService : IBorrowRequestService
                 "An unexpected error occurred while approving the request.");
         }
     }
-    
+
     // -------------------------------------------------------
-    // US-06.05: Deny Request
+    // US-06.05: Decline Request
     // -------------------------------------------------------
 
     /// <summary>
-    /// Denies a borrow request. Only the lender can deny their own requests.
+    /// Declines a borrow request. Only the lender can decline their own requests.
     /// </summary>
-    public async Task<BorrowRequestResponse> DenyRequestAsync(
+    public async Task<BorrowRequestResponse> DeclineRequestAsync(
         int borrowRequestId,
         string lenderId,
         string? responseMessage = null)
     {
         _logger.LogInformation(
-            "DenyRequest - RequestId={RequestId}, LenderId={LenderId}",
+            "DeclineRequest - RequestId={RequestId}, LenderId={LenderId}",
             borrowRequestId, lenderId);
 
         try
@@ -266,11 +266,11 @@ public class BorrowRequestService : IBorrowRequestService
 
             if (borrowRequest.LenderId != lenderId)
                 return BorrowRequestResponse.CreateFailure(
-                    "You do not have permission to deny this request.");
+                    "You do not have permission to decline this request.");
 
             if (borrowRequest.Status != BorrowRequestStatus.Pending)
                 return BorrowRequestResponse.CreateFailure(
-                    $"This request cannot be denied as it is currently {borrowRequest.Status}.");
+                    $"This request cannot be declined as it is currently {borrowRequest.Status}.");
 
             borrowRequest.Status = BorrowRequestStatus.Declined;
             borrowRequest.ResponseMessage = responseMessage?.Trim();
@@ -280,22 +280,22 @@ public class BorrowRequestService : IBorrowRequestService
             await _context.SaveChangesAsync();
 
             _logger.LogInformation(
-                "BorrowRequest {RequestId} denied by lender {LenderId}",
+                "BorrowRequest {RequestId} declined by lender {LenderId}",
                 borrowRequestId, lenderId);
 
             return BorrowRequestResponse.CreateSuccess(
-                "Request denied successfully.", borrowRequest.Id);
+                "Request declined successfully.", borrowRequest.Id);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                "Unexpected error denying request {RequestId}", borrowRequestId);
+                "Unexpected error declining request {RequestId}", borrowRequestId);
             return BorrowRequestResponse.CreateFailure(
-                "An unexpected error occurred while denying the request.");
+                "An unexpected error occurred while declining the request.");
         }
     }
-    
-        // -------------------------------------------------------
+
+    // -------------------------------------------------------
     // US-06.06: Mark Book as Picked Up
     // -------------------------------------------------------
 
@@ -369,7 +369,7 @@ public class BorrowRequestService : IBorrowRequestService
                 "An unexpected error occurred while marking the book as picked up.");
         }
     }
-    
+
     // -------------------------------------------------------
     // US-06.12: Cancel Request
     // -------------------------------------------------------

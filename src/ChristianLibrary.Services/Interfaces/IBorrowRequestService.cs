@@ -42,9 +42,9 @@ public interface IBorrowRequestService
         MarkPickedUpRequest request);
 
     /// <summary>
-    /// Denies a borrow request
+    /// Declines a borrow request
     /// </summary>
-    Task<BorrowRequestResponse> DenyRequestAsync(
+    Task<BorrowRequestResponse> DeclineRequestAsync(
         int borrowRequestId,
         string lenderId,
         string? responseMessage = null);

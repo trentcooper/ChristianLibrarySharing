@@ -150,33 +150,33 @@ public class BorrowRequestsController : ControllerBase
     }
 
     // -------------------------------------------------------
-    // US-06.05: Deny borrow request
+    // US-06.05: Decline borrow request
     // -------------------------------------------------------
 
     /// <summary>
-    /// Denies a pending borrow request
+    /// Declines a pending borrow request
     /// </summary>
-    [HttpPost("{id}/deny")]
+    [HttpPost("{id}/decline")]
     [ProducesResponseType(typeof(BorrowRequestResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(BorrowRequestResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(BorrowRequestResponse), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> DenyRequest(int id, [FromBody] string? responseMessage = null)
+    public async Task<IActionResult> DeclineRequest(int id, [FromBody] string? responseMessage = null)
     {
         var lenderId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(lenderId))
             return Unauthorized();
 
         _logger.LogInformation(
-            "POST /api/borrow-requests/{RequestId}/deny - LenderId={LenderId}",
+            "POST /api/borrow-requests/{RequestId}/decline - LenderId={LenderId}",
             id, lenderId);
 
-        var response = await _borrowRequestService.DenyRequestAsync(id, lenderId, responseMessage);
+        var response = await _borrowRequestService.DeclineRequestAsync(id, lenderId, responseMessage);
 
         if (!response.Success)
         {
             _logger.LogWarning(
-                "DenyRequest failed for request {RequestId} by lender {LenderId}: {Message}",
+                "DeclineRequest failed for request {RequestId} by lender {LenderId}: {Message}",
                 id, lenderId, response.Message);
 
             if (response.Message.Contains("permission"))
