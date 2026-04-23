@@ -39,6 +39,7 @@ public class DbSeeder
             await SeedRolesAsync();
             await SeedAdminUserAsync();
             await SeedSampleBooksAsync();
+            await SeedSampleLoansAsync(); // NEW: Seed sample loans
 
             _logger.LogInformation("Database seeding completed successfully");
         }
@@ -96,7 +97,6 @@ public class DbSeeder
                 UserName = adminEmail,
                 Email = adminEmail,
                 EmailConfirmed = true,
-                CreatedAt = DateTime.UtcNow,
                 IsActive = true,
                 IsDeleted = false
             };
@@ -118,9 +118,7 @@ public class DbSeeder
                     FirstName = "System",
                     LastName = "Administrator",
                     Bio = "System administrator account",
-                    Visibility = ProfileVisibility.Public, // ← ADDED THIS LINE
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    Visibility = ProfileVisibility.Public
                 };
 
                 _context.UserProfiles.Add(profile);
@@ -166,13 +164,12 @@ public class DbSeeder
                 Isbn = "978-0060652920",
                 Publisher = "HarperOne",
                 PublicationYear = 1952,
-                Description = "A theological book by C.S. Lewis, adapted from a series of BBC radio talks made between 1941 and 1944.",
+                Description =
+                    "A theological book by C.S. Lewis, adapted from a series of BBC radio talks made between 1941 and 1944.",
                 Genre = BookGenre.Theology,
                 Condition = BookCondition.Good,
                 IsAvailable = true,
-                OwnerId = adminUser.Id,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                OwnerId = adminUser.Id
             },
             new Book
             {
@@ -185,9 +182,7 @@ public class DbSeeder
                 Genre = BookGenre.ChristianLiving,
                 Condition = BookCondition.VeryGood,
                 IsAvailable = true,
-                OwnerId = adminUser.Id,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                OwnerId = adminUser.Id
             },
             new Book
             {
@@ -196,13 +191,12 @@ public class DbSeeder
                 Isbn = "978-0830816507",
                 Publisher = "InterVarsity Press",
                 PublicationYear = 1973,
-                Description = "A classic work on the character and nature of God, and the implications for Christian living.",
+                Description =
+                    "A classic work on the character and nature of God, and the implications for Christian living.",
                 Genre = BookGenre.Theology,
                 Condition = BookCondition.Good,
                 IsAvailable = true,
-                OwnerId = adminUser.Id,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                OwnerId = adminUser.Id
             },
             new Book
             {
@@ -211,13 +205,12 @@ public class DbSeeder
                 Isbn = "978-0140430196",
                 Publisher = "Penguin Classics",
                 PublicationYear = 1678,
-                Description = "A Christian allegory following the journey of Christian from the City of Destruction to the Celestial City.",
+                Description =
+                    "A Christian allegory following the journey of Christian from the City of Destruction to the Celestial City.",
                 Genre = BookGenre.Fiction,
                 Condition = BookCondition.Acceptable,
                 IsAvailable = true,
-                OwnerId = adminUser.Id,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                OwnerId = adminUser.Id
             },
             new Book
             {
@@ -226,13 +219,12 @@ public class DbSeeder
                 Isbn = "978-0060652937",
                 Publisher = "HarperOne",
                 PublicationYear = 1942,
-                Description = "A series of letters from a senior demon to his nephew, providing insight into Christian spiritual warfare.",
+                Description =
+                    "A series of letters from a senior demon to his nephew, providing insight into Christian spiritual warfare.",
                 Genre = BookGenre.Fiction,
                 Condition = BookCondition.VeryGood,
                 IsAvailable = false, // Mark as unavailable for variety
-                OwnerId = adminUser.Id,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                OwnerId = adminUser.Id
             },
             new Book
             {
@@ -245,9 +237,7 @@ public class DbSeeder
                 Genre = BookGenre.Apologetics,
                 Condition = BookCondition.Good,
                 IsAvailable = true,
-                OwnerId = adminUser.Id,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                OwnerId = adminUser.Id
             }
         };
 
@@ -255,5 +245,147 @@ public class DbSeeder
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("Seeded {Count} sample books", sampleBooks.Count);
+    }
+
+    /// <summary>
+    /// Seeds sample loan data for testing borrowing functionality
+    /// Creates a sample borrower user and 2 borrow requests (1 approved, 1 pending)
+    /// </summary>
+    private async Task SeedSampleLoansAsync()
+    {
+        _logger.LogInformation("Seeding sample borrow requests...");
+
+        // Check if borrow requests already exist
+        if (await _context.BorrowRequests.AnyAsync())
+        {
+            _logger.LogInformation("Borrow requests already exist, skipping seeding");
+            return;
+        }
+
+        // Get admin user (will be the lender)
+        var adminUser = await _userManager.FindByEmailAsync("admin@christianlibrary.com");
+        if (adminUser == null)
+        {
+            _logger.LogWarning("Admin user not found, cannot seed borrow requests");
+            return;
+        }
+
+        // Create a borrower user if one doesn't exist
+        const string borrowerEmail = "borrower@test.com";
+        const string borrowerPassword = "Borrower@123";
+        var borrowerUser = await _userManager.FindByEmailAsync(borrowerEmail);
+
+        if (borrowerUser == null)
+        {
+            _logger.LogInformation("Creating sample borrower user...");
+
+            borrowerUser = new ApplicationUser
+            {
+                UserName = borrowerEmail,
+                Email = borrowerEmail,
+                EmailConfirmed = true,
+                IsActive = true,
+                IsDeleted = false
+            };
+
+            var result = await _userManager.CreateAsync(borrowerUser, borrowerPassword);
+
+            if (result.Succeeded)
+            {
+                _logger.LogInformation("Created borrower user: {Email}", borrowerEmail);
+
+                // Add to Member role
+                await _userManager.AddToRoleAsync(borrowerUser, "Member");
+
+                // Create borrower profile
+                var borrowerProfile = new UserProfile
+                {
+                    UserId = borrowerUser.Id,
+                    FirstName = "John",
+                    LastName = "Borrower",
+                    Bio = "Sample borrower user for testing",
+                    City = "Portland",
+                    State = "OR",
+                    ZipCode = "97201",
+                    Visibility = ProfileVisibility.Public
+                };
+
+                _context.UserProfiles.Add(borrowerProfile);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Created borrower user profile");
+            }
+            else
+            {
+                _logger.LogError("Failed to create borrower user: {Errors}",
+                    string.Join(", ", result.Errors.Select(e => e.Description)));
+                return;
+            }
+        }
+        else
+        {
+            _logger.LogInformation("Borrower user already exists");
+        }
+
+        // Get first 2 available books to create borrow requests for
+        var books = await _context.Books
+            .Where(b => b.OwnerId == adminUser.Id && b.IsAvailable)
+            .Take(2)
+            .ToListAsync();
+
+        if (!books.Any())
+        {
+            _logger.LogWarning("No available books found for admin user, cannot seed borrow requests");
+            return;
+        }
+
+        var sampleRequests = new List<BorrowRequest>();
+        var now = DateTime.UtcNow;
+
+        // Request 1: Approved request with loan period starting yesterday, due in 5 days
+        if (books.Count >= 1)
+        {
+            sampleRequests.Add(new BorrowRequest
+            {
+                BookId = books[0].Id,
+                BorrowerId = borrowerUser.Id,
+                LenderId = adminUser.Id,
+                Status = BorrowRequestStatus.Approved,
+                RequestedStartDate = now.AddDays(-1),
+                RequestedEndDate = now.AddDays(5), // Due in 5 days
+                Message = "I'd love to read this classic work on Christian apologetics!",
+                ResponseMessage = "Approved! Enjoy the book.",
+                RespondedAt = now.AddDays(-1),
+                ExpiresAt = now.AddDays(7) // Request expires in 7 days
+            });
+
+            // Mark book as unavailable since it's approved
+            books[0].IsAvailable = false;
+        }
+
+        // Request 2: Pending request (not yet approved)
+        if (books.Count >= 2)
+        {
+            sampleRequests.Add(new BorrowRequest
+            {
+                BookId = books[1].Id,
+                BorrowerId = borrowerUser.Id,
+                LenderId = adminUser.Id,
+                Status = BorrowRequestStatus.Pending,
+                RequestedStartDate = now,
+                RequestedEndDate = now.AddDays(14), // Requesting for 2 weeks
+                Message = "This looks like a great read! May I borrow it?",
+                ResponseMessage = null, // No response yet
+                RespondedAt = null,
+                ExpiresAt = now.AddDays(3) // Request expires in 3 days if not responded to
+            });
+
+            // Don't mark as unavailable - it's just pending
+        }
+
+        _context.BorrowRequests.AddRange(sampleRequests);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Seeded {Count} sample borrow requests (1 approved, 1 pending)", sampleRequests.Count);
     }
 }

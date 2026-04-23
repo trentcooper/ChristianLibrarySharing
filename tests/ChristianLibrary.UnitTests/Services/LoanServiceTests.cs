@@ -529,4 +529,220 @@ public class LoanServiceTests
         result.Items.Should().HaveCount(2);
         result.TotalCount.Should().Be(2);
     }
+    
+    // -------------------------------------------------------
+    // GetMyBorrowsAsync — Additional Coverage
+    // -------------------------------------------------------
+
+    [Fact]
+    public async Task GetMyBorrowsAsync_SoftDeletedLoan_IsExcluded()
+    {
+        // Arrange — a loan marked IsDeleted should never surface
+        await using var context = CreateInMemoryContext();
+        var (_, _, _, _, loan) = await SeedAsync(context);
+        loan.IsDeleted = true;
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetMyBorrowsAsync("borrower-1", new LoanQuery());
+
+        // Assert
+        result.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetMyBorrowsAsync_OrdersByStartDateDescending()
+    {
+        // Arrange — three loans with staggered start dates
+        await using var context = CreateInMemoryContext();
+        var (lender, _, _, _, _) = await SeedAsync(context); // creates loan with StartDate = now - 14
+
+        var book2 = new Book
+        {
+            Title = "The Screwtape Letters",
+            Author = "C.S. Lewis",
+            Genre = BookGenre.Theology,
+            Condition = BookCondition.Good,
+            OwnerId = "lender-1",
+            Owner = lender,
+            IsAvailable = false,
+            IsDeleted = false
+        };
+        var book3 = new Book
+        {
+            Title = "Knowing God",
+            Author = "J.I. Packer",
+            Genre = BookGenre.Theology,
+            Condition = BookCondition.Good,
+            OwnerId = "lender-1",
+            Owner = lender,
+            IsAvailable = false,
+            IsDeleted = false
+        };
+        context.Books.AddRange(book2, book3);
+        await context.SaveChangesAsync();
+
+        context.Loans.AddRange(
+            new Loan
+            {
+                BookId = book2.Id,
+                BorrowerId = "borrower-1",
+                LenderId = "lender-1",
+                Status = LoanStatus.Active,
+                StartDate = DateTime.UtcNow.AddDays(-1), // most recent
+                DueDate = DateTime.UtcNow.AddDays(29),
+                CreatedAt = DateTime.UtcNow.AddDays(-1)
+            },
+            new Loan
+            {
+                BookId = book3.Id,
+                BorrowerId = "borrower-1",
+                LenderId = "lender-1",
+                Status = LoanStatus.Active,
+                StartDate = DateTime.UtcNow.AddDays(-7), // middle
+                DueDate = DateTime.UtcNow.AddDays(23),
+                CreatedAt = DateTime.UtcNow.AddDays(-7)
+            });
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetMyBorrowsAsync("borrower-1", new LoanQuery { PageSize = 10 });
+
+        // Assert — newest first
+        result.Items.Should().HaveCount(3);
+        result.Items.Should().BeInDescendingOrder(l => l.StartDate);
+    }
+
+    [Fact]
+    public async Task GetMyBorrowsAsync_DoesNotReturnLoansWhereCallerIsLender()
+    {
+        // Arrange — a borrow query from the lender's perspective should return nothing,
+        // even though the lender has loans they own
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetMyBorrowsAsync("lender-1", new LoanQuery());
+
+        // Assert
+        result.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetMyBorrowsAsync_LoanSummary_PopulatesBookAndLenderFields()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (_, _, book, _, loan) = await SeedAsync(context);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetMyBorrowsAsync("borrower-1", new LoanQuery());
+
+        // Assert — the mapping surfaces everything the borrower UI needs
+        result.Items.Should().HaveCount(1);
+        var summary = result.Items.First();
+        summary.BookId.Should().Be(book.Id);
+        summary.BookTitle.Should().Be("Mere Christianity");
+        summary.BookAuthor.Should().Be("C.S. Lewis");
+        summary.LenderId.Should().Be("lender-1");
+        summary.LenderName.Should().Be("Lender User");
+        summary.Status.Should().Be(LoanStatus.Active);
+        summary.ConditionAtCheckout.Should().Be(BookCondition.Good);
+        // IsOverdue is a computed property — seeded with DueDate 16 days out, so false
+        summary.IsOverdue.Should().BeFalse();
+        summary.DaysUntilDue.Should().BeGreaterThan(0);
+    }
+
+    // -------------------------------------------------------
+    // GetMyLoansAsync — Additional Coverage
+    // -------------------------------------------------------
+
+    [Fact]
+    public async Task GetMyLoansAsync_DoesNotReturnLoansWhereCallerIsBorrower()
+    {
+        // Arrange — a loans query from the borrower's perspective should return nothing
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetMyLoansAsync("borrower-1", new LoanQuery());
+
+        // Assert
+        result.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetMyLoansAsync_OrdersByStartDateDescending()
+    {
+        // Arrange — three loans with staggered start dates
+        await using var context = CreateInMemoryContext();
+        var (lender, _, _, _, _) = await SeedAsync(context);
+
+        var book2 = new Book
+        {
+            Title = "The Screwtape Letters",
+            Author = "C.S. Lewis",
+            Genre = BookGenre.Theology,
+            Condition = BookCondition.Good,
+            OwnerId = "lender-1",
+            Owner = lender,
+            IsAvailable = false,
+            IsDeleted = false
+        };
+        var book3 = new Book
+        {
+            Title = "Knowing God",
+            Author = "J.I. Packer",
+            Genre = BookGenre.Theology,
+            Condition = BookCondition.Good,
+            OwnerId = "lender-1",
+            Owner = lender,
+            IsAvailable = false,
+            IsDeleted = false
+        };
+        context.Books.AddRange(book2, book3);
+        await context.SaveChangesAsync();
+
+        context.Loans.AddRange(
+            new Loan
+            {
+                BookId = book2.Id,
+                BorrowerId = "borrower-1",
+                LenderId = "lender-1",
+                Status = LoanStatus.Active,
+                StartDate = DateTime.UtcNow.AddDays(-1),
+                DueDate = DateTime.UtcNow.AddDays(29),
+                CreatedAt = DateTime.UtcNow.AddDays(-1)
+            },
+            new Loan
+            {
+                BookId = book3.Id,
+                BorrowerId = "borrower-1",
+                LenderId = "lender-1",
+                Status = LoanStatus.Active,
+                StartDate = DateTime.UtcNow.AddDays(-7),
+                DueDate = DateTime.UtcNow.AddDays(23),
+                CreatedAt = DateTime.UtcNow.AddDays(-7)
+            });
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetMyLoansAsync("lender-1", new LoanQuery { PageSize = 10 });
+
+        // Assert
+        result.Items.Should().HaveCount(3);
+        result.Items.Should().BeInDescendingOrder(l => l.StartDate);
+    }
+    
 }
