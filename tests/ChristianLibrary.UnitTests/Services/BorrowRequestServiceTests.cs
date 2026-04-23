@@ -923,4 +923,48 @@ public class BorrowRequestServiceTests
         var saved = await context.BorrowRequests.FindAsync(result.BorrowRequestId);
         saved!.Message.Should().BeNull();
     }
+    
+    // -------------------------------------------------------
+    // Summary Name Population — Guards Against Missing Includes
+    // -------------------------------------------------------
+
+    [Fact]
+    public async Task GetIncomingRequestsAsync_PopulatesBorrowerAndLenderNames()
+    {
+        // Arrange — confirms both Borrower.Profile and Lender.Profile are included
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context);
+        var service = CreateService(context);
+
+        // Act
+        var results = await service.GetIncomingRequestsAsync("lender-1");
+
+        // Assert
+        results.Should().HaveCount(1);
+        var summary = results.First();
+        summary.BorrowerName.Should().Be("Borrower User");
+        summary.LenderName.Should().Be("Lender User");
+        summary.BorrowerName.Should().NotBe("Unknown");
+        summary.LenderName.Should().NotBe("Unknown");
+    }
+
+    [Fact]
+    public async Task GetOutgoingRequestsAsync_PopulatesBorrowerAndLenderNames()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context);
+        var service = CreateService(context);
+
+        // Act
+        var results = await service.GetOutgoingRequestsAsync("borrower-1");
+
+        // Assert
+        results.Should().HaveCount(1);
+        var summary = results.First();
+        summary.BorrowerName.Should().Be("Borrower User");
+        summary.LenderName.Should().Be("Lender User");
+        summary.BorrowerName.Should().NotBe("Unknown");
+        summary.LenderName.Should().NotBe("Unknown");
+    }
 }

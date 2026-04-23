@@ -33,7 +33,7 @@ public class BorrowRequestService : IBorrowRequestService
     /// - Book must exist and be available
     /// - Borrower cannot request their own book
     /// - No duplicate pending requests allowed
-    /// - Dates must be valid (start in future, end after start)
+    /// - Dates must be valid (start in the future, end after start)
     /// </summary>
     public async Task<BorrowRequestResponse> CreateBorrowRequestAsync(
         CreateBorrowRequest request,
@@ -135,6 +135,8 @@ public class BorrowRequestService : IBorrowRequestService
                 .Include(r => r.Book)
                 .Include(r => r.Borrower)
                 .ThenInclude(u => u.Profile)
+                .Include(r => r.Lender)
+                .ThenInclude(u => u.Profile)
                 .Where(r => r.LenderId == lenderId && !r.IsDeleted)
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync();
@@ -166,6 +168,8 @@ public class BorrowRequestService : IBorrowRequestService
             var requests = await _context.BorrowRequests
                 .Include(r => r.Book)
                 .Include(r => r.Lender)
+                .ThenInclude(u => u.Profile)
+                .Include(r => r.Borrower)
                 .ThenInclude(u => u.Profile)
                 .Where(r => r.BorrowerId == borrowerId && !r.IsDeleted)
                 .OrderByDescending(r => r.CreatedAt)
