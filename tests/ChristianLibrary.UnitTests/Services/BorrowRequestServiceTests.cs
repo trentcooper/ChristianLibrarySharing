@@ -33,11 +33,11 @@ public class BorrowRequestServiceTests
     }
 
     // -------------------------------------------------------
-    // Seed helper — adds users, a book, and a borrow request
+    // Seed helpers — SeedAsync composes on SeedUsersAndBookAsync
     // -------------------------------------------------------
 
     private static async Task<(ApplicationUser lender, ApplicationUser borrower, Book book)>
-        SeedAsync(ApplicationDbContext context, BorrowRequestStatus status = BorrowRequestStatus.Pending)
+        SeedUsersAndBookAsync(ApplicationDbContext context)
     {
         var lender = new ApplicationUser
         {
@@ -72,6 +72,14 @@ public class BorrowRequestServiceTests
         context.Users.AddRange(lender, borrower);
         context.Books.Add(book);
         await context.SaveChangesAsync();
+
+        return (lender, borrower, book);
+    }
+
+    private static async Task<(ApplicationUser lender, ApplicationUser borrower, Book book)>
+        SeedAsync(ApplicationDbContext context, BorrowRequestStatus status = BorrowRequestStatus.Pending)
+    {
+        var (lender, borrower, book) = await SeedUsersAndBookAsync(context);
 
         var borrowRequest = new BorrowRequest
         {
@@ -384,5 +392,535 @@ public class BorrowRequestServiceTests
         // Assert
         var loans = await context.Loans.ToListAsync();
         loans.Should().BeEmpty();
+    }
+    
+    // -------------------------------------------------------
+    // DeclineRequestAsync Tests (US-06.05)
+    // -------------------------------------------------------
+
+    [Fact]
+    public async Task DeclineRequestAsync_Success_UpdatesStatusToDeclined()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context);
+        var service = CreateService(context);
+        var request = context.BorrowRequests.First();
+
+        // Act
+        var result = await service.DeclineRequestAsync(
+            request.Id, "lender-1", "Sorry, already lent out.");
+
+        // Assert
+        result.Success.Should().BeTrue();
+
+        var updated = await context.BorrowRequests.FindAsync(request.Id);
+        updated!.Status.Should().Be(BorrowRequestStatus.Declined);
+        updated.ResponseMessage.Should().Be("Sorry, already lent out.");
+        updated.RespondedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task DeclineRequestAsync_DoesNotCreateLoan()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context);
+        var service = CreateService(context);
+        var request = context.BorrowRequests.First();
+
+        // Act
+        await service.DeclineRequestAsync(request.Id, "lender-1");
+
+        // Assert
+        var loans = await context.Loans.ToListAsync();
+        loans.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DeclineRequestAsync_DoesNotMarkBookUnavailable()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context);
+        var service = CreateService(context);
+        var request = context.BorrowRequests.First();
+
+        // Act
+        await service.DeclineRequestAsync(request.Id, "lender-1");
+
+        // Assert — book remains available; decline does not affect inventory
+        var book = await context.Books.FindAsync(request.BookId);
+        book!.IsAvailable.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DeclineRequestAsync_WrongLender_ReturnsFailureWithPermission()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context);
+        var service = CreateService(context);
+        var request = context.BorrowRequests.First();
+
+        // Act
+        var result = await service.DeclineRequestAsync(request.Id, "wrong-user");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("permission");
+
+        // Status should be unchanged
+        var unchanged = await context.BorrowRequests.FindAsync(request.Id);
+        unchanged!.Status.Should().Be(BorrowRequestStatus.Pending);
+    }
+
+    [Fact]
+    public async Task DeclineRequestAsync_RequestNotFound_ReturnsFailure()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.DeclineRequestAsync(999, "lender-1");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("not found");
+    }
+
+    [Fact]
+    public async Task DeclineRequestAsync_AlreadyDeclined_ReturnsFailure()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context, BorrowRequestStatus.Declined);
+        var service = CreateService(context);
+        var request = context.BorrowRequests.First();
+
+        // Act
+        var result = await service.DeclineRequestAsync(request.Id, "lender-1");
+
+        // Assert
+        result.Success.Should().BeFalse();
+    }
+
+    // -------------------------------------------------------
+    // CancelRequestAsync Tests (US-06.12)
+    // -------------------------------------------------------
+
+    [Fact]
+    public async Task CancelRequestAsync_Success_UpdatesStatusToCancelled()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context);
+        var service = CreateService(context);
+        var request = context.BorrowRequests.First();
+
+        // Act
+        var result = await service.CancelRequestAsync(request.Id, "borrower-1");
+
+        // Assert
+        result.Success.Should().BeTrue();
+
+        var updated = await context.BorrowRequests.FindAsync(request.Id);
+        updated!.Status.Should().Be(BorrowRequestStatus.Cancelled);
+    }
+
+    [Fact]
+    public async Task CancelRequestAsync_WrongBorrower_ReturnsFailureWithPermission()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context);
+        var service = CreateService(context);
+        var request = context.BorrowRequests.First();
+
+        // Act — the lender trying to cancel is still the wrong user here
+        var result = await service.CancelRequestAsync(request.Id, "lender-1");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("permission");
+
+        var unchanged = await context.BorrowRequests.FindAsync(request.Id);
+        unchanged!.Status.Should().Be(BorrowRequestStatus.Pending);
+    }
+
+    [Fact]
+    public async Task CancelRequestAsync_RequestNotFound_ReturnsFailure()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.CancelRequestAsync(999, "borrower-1");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("not found");
+    }
+
+    [Fact]
+    public async Task CancelRequestAsync_AlreadyApproved_ReturnsFailure()
+    {
+        // Arrange — borrower cannot cancel after lender has approved
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context, BorrowRequestStatus.Approved);
+        var service = CreateService(context);
+        var request = context.BorrowRequests.First();
+
+        // Act
+        var result = await service.CancelRequestAsync(request.Id, "borrower-1");
+
+        // Assert
+        result.Success.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CancelRequestAsync_AlreadyCancelled_ReturnsFailure()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context, BorrowRequestStatus.Cancelled);
+        var service = CreateService(context);
+        var request = context.BorrowRequests.First();
+
+        // Act
+        var result = await service.CancelRequestAsync(request.Id, "borrower-1");
+
+        // Assert
+        result.Success.Should().BeFalse();
+    }
+    
+    // -------------------------------------------------------
+    // CreateBorrowRequestAsync Tests (US-06.02)
+    // -------------------------------------------------------
+
+    [Fact]
+    public async Task CreateBorrowRequestAsync_HappyPath_CreatesPendingRequest()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        var service = CreateService(context);
+        var request = new CreateBorrowRequest
+        {
+            BookId = book.Id,
+            RequestedStartDate = DateTime.UtcNow.AddDays(1),
+            RequestedEndDate = DateTime.UtcNow.AddDays(14),
+            Message = "I'd love to read this!"
+        };
+        var before = DateTime.UtcNow;
+
+        // Act
+        var result = await service.CreateBorrowRequestAsync(request, "borrower-1");
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.BorrowRequestId.Should().NotBeNull();
+
+        var saved = await context.BorrowRequests.FindAsync(result.BorrowRequestId);
+        saved.Should().NotBeNull();
+        saved!.BookId.Should().Be(book.Id);
+        saved.BorrowerId.Should().Be("borrower-1");
+        saved.LenderId.Should().Be("lender-1");
+        saved.Status.Should().Be(BorrowRequestStatus.Pending);
+        saved.Message.Should().Be("I'd love to read this!");
+        saved.ExpiresAt.Should().BeOnOrAfter(before.AddDays(7));
+        saved.ExpiresAt.Should().BeOnOrBefore(DateTime.UtcNow.AddDays(7));
+    }
+
+    [Fact]
+    public async Task CreateBorrowRequestAsync_StartDateInPast_ReturnsFailure()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        var service = CreateService(context);
+        var request = new CreateBorrowRequest
+        {
+            BookId = book.Id,
+            RequestedStartDate = DateTime.UtcNow.AddDays(-1),
+            RequestedEndDate = DateTime.UtcNow.AddDays(14),
+            Message = "Test"
+        };
+
+        // Act
+        var result = await service.CreateBorrowRequestAsync(request, "borrower-1");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("future");
+    }
+
+    [Fact]
+    public async Task CreateBorrowRequestAsync_StartDateEqualsNow_ReturnsFailure()
+    {
+        // Arrange — boundary case: start date equal to the current moment
+        // By the time the service checks, DateTime.UtcNow will have advanced past it
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        var service = CreateService(context);
+        var request = new CreateBorrowRequest
+        {
+            BookId = book.Id,
+            RequestedStartDate = DateTime.UtcNow,
+            RequestedEndDate = DateTime.UtcNow.AddDays(14),
+            Message = "Test"
+        };
+
+        // Act
+        var result = await service.CreateBorrowRequestAsync(request, "borrower-1");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("future");
+    }
+
+    [Fact]
+    public async Task CreateBorrowRequestAsync_EndDateEqualsStartDate_ReturnsFailure()
+    {
+        // Arrange — boundary case: end date equal to start date is not a valid range
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        var service = CreateService(context);
+        var start = DateTime.UtcNow.AddDays(1);
+        var request = new CreateBorrowRequest
+        {
+            BookId = book.Id,
+            RequestedStartDate = start,
+            RequestedEndDate = start,
+            Message = "Test"
+        };
+
+        // Act
+        var result = await service.CreateBorrowRequestAsync(request, "borrower-1");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("after");
+    }
+
+    [Fact]
+    public async Task CreateBorrowRequestAsync_EndDateBeforeStartDate_ReturnsFailure()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        var service = CreateService(context);
+        var request = new CreateBorrowRequest
+        {
+            BookId = book.Id,
+            RequestedStartDate = DateTime.UtcNow.AddDays(10),
+            RequestedEndDate = DateTime.UtcNow.AddDays(5),
+            Message = "Test"
+        };
+
+        // Act
+        var result = await service.CreateBorrowRequestAsync(request, "borrower-1");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("after");
+    }
+
+    [Fact]
+    public async Task CreateBorrowRequestAsync_BookNotFound_ReturnsFailure()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedUsersAndBookAsync(context);
+        var service = CreateService(context);
+        var request = new CreateBorrowRequest
+        {
+            BookId = 99999,
+            RequestedStartDate = DateTime.UtcNow.AddDays(1),
+            RequestedEndDate = DateTime.UtcNow.AddDays(14),
+            Message = "Test"
+        };
+
+        // Act
+        var result = await service.CreateBorrowRequestAsync(request, "borrower-1");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("not found");
+    }
+
+    [Fact]
+    public async Task CreateBorrowRequestAsync_BookSoftDeleted_ReturnsNotFound()
+    {
+        // Arrange — a soft-deleted book should be treated as if it doesn't exist
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        book.IsDeleted = true;
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+        var request = new CreateBorrowRequest
+        {
+            BookId = book.Id,
+            RequestedStartDate = DateTime.UtcNow.AddDays(1),
+            RequestedEndDate = DateTime.UtcNow.AddDays(14),
+            Message = "Test"
+        };
+
+        // Act
+        var result = await service.CreateBorrowRequestAsync(request, "borrower-1");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("not found");
+    }
+
+    [Fact]
+    public async Task CreateBorrowRequestAsync_BookNotAvailable_ReturnsFailure()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        book.IsAvailable = false;
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+        var request = new CreateBorrowRequest
+        {
+            BookId = book.Id,
+            RequestedStartDate = DateTime.UtcNow.AddDays(1),
+            RequestedEndDate = DateTime.UtcNow.AddDays(14),
+            Message = "Test"
+        };
+
+        // Act
+        var result = await service.CreateBorrowRequestAsync(request, "borrower-1");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("not currently available");
+    }
+
+    [Fact]
+    public async Task CreateBorrowRequestAsync_BorrowerIsOwner_ReturnsFailure()
+    {
+        // Arrange — owner attempts to borrow their own book
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        var service = CreateService(context);
+        var request = new CreateBorrowRequest
+        {
+            BookId = book.Id,
+            RequestedStartDate = DateTime.UtcNow.AddDays(1),
+            RequestedEndDate = DateTime.UtcNow.AddDays(14),
+            Message = "Test"
+        };
+
+        // Act
+        var result = await service.CreateBorrowRequestAsync(request, "lender-1");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("your own book");
+    }
+
+    [Fact]
+    public async Task CreateBorrowRequestAsync_ExistingPendingRequest_ReturnsFailure()
+    {
+        // Arrange — borrower already has a pending request for this book
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedAsync(context, BorrowRequestStatus.Pending);
+        var service = CreateService(context);
+        var request = new CreateBorrowRequest
+        {
+            BookId = book.Id,
+            RequestedStartDate = DateTime.UtcNow.AddDays(1),
+            RequestedEndDate = DateTime.UtcNow.AddDays(14),
+            Message = "Second attempt"
+        };
+
+        // Act
+        var result = await service.CreateBorrowRequestAsync(request, "borrower-1");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("pending request");
+    }
+
+    [Fact]
+    public async Task CreateBorrowRequestAsync_PreviouslyDeclined_AllowsNewRequest()
+    {
+        // Arrange — only Pending requests should block new requests;
+        // a previously declined request must not prevent a retry
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedAsync(context, BorrowRequestStatus.Declined);
+        var service = CreateService(context);
+        var request = new CreateBorrowRequest
+        {
+            BookId = book.Id,
+            RequestedStartDate = DateTime.UtcNow.AddDays(1),
+            RequestedEndDate = DateTime.UtcNow.AddDays(14),
+            Message = "Trying again after decline"
+        };
+
+        // Act
+        var result = await service.CreateBorrowRequestAsync(request, "borrower-1");
+
+        // Assert
+        result.Success.Should().BeTrue();
+
+        var count = await context.BorrowRequests
+            .CountAsync(r => r.BorrowerId == "borrower-1" && r.BookId == book.Id);
+        count.Should().Be(2); // original declined + new pending
+    }
+
+    [Fact]
+    public async Task CreateBorrowRequestAsync_MessageWithWhitespace_IsTrimmed()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        var service = CreateService(context);
+        var request = new CreateBorrowRequest
+        {
+            BookId = book.Id,
+            RequestedStartDate = DateTime.UtcNow.AddDays(1),
+            RequestedEndDate = DateTime.UtcNow.AddDays(14),
+            Message = "   I'd love to read this!   "
+        };
+
+        // Act
+        var result = await service.CreateBorrowRequestAsync(request, "borrower-1");
+
+        // Assert
+        result.Success.Should().BeTrue();
+        var saved = await context.BorrowRequests.FindAsync(result.BorrowRequestId);
+        saved!.Message.Should().Be("I'd love to read this!");
+    }
+
+    [Fact]
+    public async Task CreateBorrowRequestAsync_NullMessage_Succeeds()
+    {
+        // Arrange — message is optional; null should persist as null, not cause failure
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        var service = CreateService(context);
+        var request = new CreateBorrowRequest
+        {
+            BookId = book.Id,
+            RequestedStartDate = DateTime.UtcNow.AddDays(1),
+            RequestedEndDate = DateTime.UtcNow.AddDays(14),
+            Message = null
+        };
+
+        // Act
+        var result = await service.CreateBorrowRequestAsync(request, "borrower-1");
+
+        // Assert
+        result.Success.Should().BeTrue();
+        var saved = await context.BorrowRequests.FindAsync(result.BorrowRequestId);
+        saved!.Message.Should().BeNull();
     }
 }
