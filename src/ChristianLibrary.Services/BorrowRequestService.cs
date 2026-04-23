@@ -152,7 +152,7 @@ public class BorrowRequestService : IBorrowRequestService
     }
 
     // -------------------------------------------------------
-    // US-06.02: View Outgoing Requests
+    // US-06.02: View Outgoing Requests (borrower's own requests)
     // -------------------------------------------------------
 
     /// <summary>

@@ -87,7 +87,7 @@ public class BorrowRequestsController : ControllerBase
     }
 
     // -------------------------------------------------------
-    // US-06.08: View my active borrows (as borrower) / outgoing requests
+    // US-06.02: View Outgoing Requests (borrower's own requests)
     // -------------------------------------------------------
 
     /// <summary>
