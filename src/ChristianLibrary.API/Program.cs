@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -134,17 +135,23 @@ try
                 },
                 OnTokenValidated = context =>
                 {
-                    var userName = context.Principal?.Identity?.Name ?? "Unknown";
-                    Log.Information("JWT Token validated successfully for user: {User}", userName);
+                    var principal = context.Principal;
+                    var email = principal?.FindFirst(ClaimTypes.Email)?.Value;
+                    var userId = principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                    var user = email ?? userId ?? "Unknown";
+                    Log.Information("JWT Token validated successfully for user: {User}", user);
                     return Task.CompletedTask;
                 },
                 OnMessageReceived = context =>
                 {
-                    var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
-                    var token = authHeader?.Split(" ").Last();
-                    if (token != null && token.Length > 20)
+                    if (builder.Environment.IsDevelopment())
                     {
-                        Log.Information("JWT Token received: {TokenPreview}...", token.Substring(0, 20));
+                        var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+                        var token = authHeader?.Split(" ").Last();
+                        if (token != null && token.Length > 20)
+                        {
+                            Log.Information("JWT Token received: {TokenPreview}...", token.Substring(0, 20));
+                        }
                     }
 
                     return Task.CompletedTask;
