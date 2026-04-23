@@ -178,7 +178,8 @@ public class DbSeeder
                 Isbn = "978-0684815008",
                 Publisher = "Touchstone",
                 PublicationYear = 1937,
-                Description = "A compelling statement of the demands of sacrifice and ethical consistency from a man whose life ended in martyrdom.",
+                Description =
+                    "A compelling statement of the demands of sacrifice and ethical consistency from a man whose life ended in martyrdom.",
                 Genre = BookGenre.ChristianLiving,
                 Condition = BookCondition.VeryGood,
                 IsAvailable = true,
