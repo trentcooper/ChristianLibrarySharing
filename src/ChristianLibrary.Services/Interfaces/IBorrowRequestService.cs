@@ -1,4 +1,5 @@
 ﻿using ChristianLibrary.Services.DTOs.BorrowRequests;
+using ChristianLibrary.Services.DTOs.Common;
 
 namespace ChristianLibrary.Services.Interfaces;
 
@@ -15,14 +16,20 @@ public interface IBorrowRequestService
         string borrowerId);
 
     /// <summary>
-    /// Gets all pending borrow requests received by the authenticated user (as lender)
+    /// Gets a paginated list of borrow requests received by the authenticated user (as lender),
+    /// optionally filtered by status
     /// </summary>
-    Task<List<BorrowRequestSummary>> GetIncomingRequestsAsync(string lenderId);
+    Task<PagedResult<BorrowRequestSummary>> GetIncomingRequestsAsync(
+        string lenderId,
+        BorrowRequestQuery query);
 
     /// <summary>
-    /// Gets all borrow requests made by the authenticated user (as borrower)
+    /// Gets a paginated list of borrow requests made by the authenticated user (as borrower),
+    /// optionally filtered by status
     /// </summary>
-    Task<List<BorrowRequestSummary>> GetOutgoingRequestsAsync(string borrowerId);
+    Task<PagedResult<BorrowRequestSummary>> GetOutgoingRequestsAsync(
+        string borrowerId,
+        BorrowRequestQuery query);
 
     /// <summary>
     /// Approves a borrow request and creates a loan

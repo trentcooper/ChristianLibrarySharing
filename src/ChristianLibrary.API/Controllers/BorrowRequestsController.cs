@@ -3,6 +3,7 @@ using ChristianLibrary.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using ChristianLibrary.Services.DTOs.Common;
 
 namespace ChristianLibrary.API.Controllers;
 
@@ -67,23 +68,25 @@ public class BorrowRequestsController : ControllerBase
     // -------------------------------------------------------
 
     /// <summary>
-    /// Returns all borrow requests received by the authenticated user as a lender
+    /// Returns a paginated list of borrow requests received by the authenticated user as a lender,
+    /// optionally filtered by status
     /// </summary>
     [HttpGet("incoming")]
-    [ProducesResponseType(typeof(List<BorrowRequestSummary>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<BorrowRequestSummary>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> GetIncomingRequests()
+    public async Task<IActionResult> GetIncomingRequests([FromQuery] BorrowRequestQuery query)
     {
         var lenderId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(lenderId))
             return Unauthorized();
 
         _logger.LogInformation(
-            "GET /api/borrow-requests/incoming - LenderId={LenderId}", lenderId);
+            "GET /api/borrow-requests/incoming - LenderId={LenderId}, Page={Page}, PageSize={PageSize}, Status={Status}",
+            lenderId, query.Page, query.PageSize, query.Status);
 
-        var requests = await _borrowRequestService.GetIncomingRequestsAsync(lenderId);
+        var result = await _borrowRequestService.GetIncomingRequestsAsync(lenderId, query);
 
-        return Ok(new { count = requests.Count, requests });
+        return Ok(result);
     }
 
     // -------------------------------------------------------
@@ -91,23 +94,25 @@ public class BorrowRequestsController : ControllerBase
     // -------------------------------------------------------
 
     /// <summary>
-    /// Returns all borrow requests made by the authenticated user as a borrower
+    /// Returns a paginated list of borrow requests made by the authenticated user as a borrower,
+    /// optionally filtered by status
     /// </summary>
     [HttpGet("outgoing")]
-    [ProducesResponseType(typeof(List<BorrowRequestSummary>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<BorrowRequestSummary>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> GetOutgoingRequests()
+    public async Task<IActionResult> GetOutgoingRequests([FromQuery] BorrowRequestQuery query)
     {
         var borrowerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(borrowerId))
             return Unauthorized();
 
         _logger.LogInformation(
-            "GET /api/borrow-requests/outgoing - BorrowerId={BorrowerId}", borrowerId);
+            "GET /api/borrow-requests/outgoing - BorrowerId={BorrowerId}, Page={Page}, PageSize={PageSize}, Status={Status}",
+            borrowerId, query.Page, query.PageSize, query.Status);
 
-        var requests = await _borrowRequestService.GetOutgoingRequestsAsync(borrowerId);
+        var result = await _borrowRequestService.GetOutgoingRequestsAsync(borrowerId, query);
 
-        return Ok(new { count = requests.Count, requests });
+        return Ok(result);
     }
 
     // -------------------------------------------------------

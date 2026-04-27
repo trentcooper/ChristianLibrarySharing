@@ -2,6 +2,7 @@
 using ChristianLibrary.Domain.Entities;
 using ChristianLibrary.Domain.Enums;
 using ChristianLibrary.Services.DTOs.BorrowRequests;
+using ChristianLibrary.Services.DTOs.Common;
 using ChristianLibrary.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -119,69 +120,114 @@ public class BorrowRequestService : IBorrowRequestService
 
     // -------------------------------------------------------
     // US-06.03: View Incoming Requests
+    // US-06.14: Pagination + status filter
     // -------------------------------------------------------
-
+    
     /// <summary>
-    /// Returns all non-deleted borrow requests received by the lender
-    /// ordered by most recent first
+    /// Returns a paginated list of borrow requests received by the lender,
+    /// ordered by most recent first. Optionally filtered by status.
     /// </summary>
-    public async Task<List<BorrowRequestSummary>> GetIncomingRequestsAsync(string lenderId)
+    /// <param name="lenderId">The ID of the lender (recipient of requests)</param>
+    /// <param name="query">Pagination and optional status filter</param>
+    public async Task<PagedResult<BorrowRequestSummary>> GetIncomingRequestsAsync(
+        string lenderId,
+        BorrowRequestQuery query)
     {
-        _logger.LogInformation("Getting incoming requests for lender {LenderId}", lenderId);
+        _logger.LogInformation(
+            "GetIncomingRequests - LenderId={LenderId}, Page={Page}, PageSize={PageSize}, Status={Status}",
+            lenderId, query.Page, query.PageSize, query.Status);
 
         try
         {
-            var requests = await _context.BorrowRequests
+            var dbQuery = _context.BorrowRequests
                 .Include(r => r.Book)
                 .Include(r => r.Borrower)
                 .ThenInclude(u => u.Profile)
                 .Include(r => r.Lender)
                 .ThenInclude(u => u.Profile)
-                .Where(r => r.LenderId == lenderId && !r.IsDeleted)
+                .Where(r => r.LenderId == lenderId && !r.IsDeleted);
+
+            if (query.Status.HasValue)
+                dbQuery = dbQuery.Where(r => r.Status == query.Status.Value);
+
+            var totalCount = await dbQuery.CountAsync();
+
+            var requests = await dbQuery
                 .OrderByDescending(r => r.CreatedAt)
+                .Skip((query.Page - 1) * query.PageSize)
+                .Take(query.PageSize)
                 .ToListAsync();
 
-            return requests.Select(MapToSummary).ToList();
+            return new PagedResult<BorrowRequestSummary>
+            {
+                Items = requests.Select(MapToSummary).ToList(),
+                TotalCount = totalCount,
+                Page = query.Page,
+                PageSize = query.PageSize
+            };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex,
                 "Unexpected error getting incoming requests for lender {LenderId}", lenderId);
-            return new List<BorrowRequestSummary>();
+            return new PagedResult<BorrowRequestSummary>();
         }
     }
 
+    
     // -------------------------------------------------------
     // US-06.02: View Outgoing Requests (borrower's own requests)
-    // -------------------------------------------------------
-
+    // US-06.14: Pagination + status filter
+    // -------------------------------------------------------  
+    
     /// <summary>
-    /// Returns all non-deleted borrow requests made by the borrower
-    /// ordered by most recent first
+    /// Returns a paginated list of borrow requests made by the borrower,
+    /// ordered by most recent first. Optionally filtered by status.
     /// </summary>
-    public async Task<List<BorrowRequestSummary>> GetOutgoingRequestsAsync(string borrowerId)
+    /// <param name="borrowerId">The ID of the borrower (originator of requests)</param>
+    /// <param name="query">Pagination and optional status filter</param>
+    public async Task<PagedResult<BorrowRequestSummary>> GetOutgoingRequestsAsync(
+        string borrowerId,
+        BorrowRequestQuery query)
     {
-        _logger.LogInformation("Getting outgoing requests for borrower {BorrowerId}", borrowerId);
+        _logger.LogInformation(
+            "GetOutgoingRequests - BorrowerId={BorrowerId}, Page={Page}, PageSize={PageSize}, Status={Status}",
+            borrowerId, query.Page, query.PageSize, query.Status);
 
         try
         {
-            var requests = await _context.BorrowRequests
+            var dbQuery = _context.BorrowRequests
                 .Include(r => r.Book)
                 .Include(r => r.Lender)
                 .ThenInclude(u => u.Profile)
                 .Include(r => r.Borrower)
                 .ThenInclude(u => u.Profile)
-                .Where(r => r.BorrowerId == borrowerId && !r.IsDeleted)
+                .Where(r => r.BorrowerId == borrowerId && !r.IsDeleted);
+
+            if (query.Status.HasValue)
+                dbQuery = dbQuery.Where(r => r.Status == query.Status.Value);
+
+            var totalCount = await dbQuery.CountAsync();
+
+            var requests = await dbQuery
                 .OrderByDescending(r => r.CreatedAt)
+                .Skip((query.Page - 1) * query.PageSize)
+                .Take(query.PageSize)
                 .ToListAsync();
 
-            return requests.Select(MapToSummary).ToList();
+            return new PagedResult<BorrowRequestSummary>
+            {
+                Items = requests.Select(MapToSummary).ToList(),
+                TotalCount = totalCount,
+                Page = query.Page,
+                PageSize = query.PageSize
+            };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex,
                 "Unexpected error getting outgoing requests for borrower {BorrowerId}", borrowerId);
-            return new List<BorrowRequestSummary>();
+            return new PagedResult<BorrowRequestSummary>();
         }
     }
 

@@ -3,6 +3,7 @@ using ChristianLibrary.Domain.Entities;
 using ChristianLibrary.Domain.Enums;
 using ChristianLibrary.Services;
 using ChristianLibrary.Services.DTOs.BorrowRequests;
+using ChristianLibrary.Services.DTOs.Common;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -75,7 +76,36 @@ public class BorrowRequestServiceTests
 
         return (lender, borrower, book);
     }
-
+    
+    /// <summary>
+    /// Adds borrow requests against an existing book, one per supplied status.
+    /// Use after SeedUsersAndBookAsync to compose a multi-request scenario.
+    /// </summary>
+    private static async Task SeedRequestsAsync(
+        ApplicationDbContext context,
+        int bookId,
+        params BorrowRequestStatus[] statuses)
+    {
+        var now = DateTime.UtcNow;
+        for (var i = 0; i < statuses.Length; i++)
+        {
+            context.BorrowRequests.Add(new BorrowRequest
+            {
+                BookId = bookId,
+                BorrowerId = "borrower-1",
+                LenderId = "lender-1",
+                Status = statuses[i],
+                RequestedStartDate = now.AddDays(1),
+                RequestedEndDate = now.AddDays(30),
+                ExpiresAt = now.AddDays(7),
+                // Stagger CreatedAt so OrderByDescending(CreatedAt) is deterministic
+                CreatedAt = now.AddSeconds(i)
+            });
+        }
+        await context.SaveChangesAsync();
+    }
+    
+    
     private static async Task<(ApplicationUser lender, ApplicationUser borrower, Book book)>
         SeedAsync(ApplicationDbContext context, BorrowRequestStatus status = BorrowRequestStatus.Pending)
     {
@@ -937,11 +967,11 @@ public class BorrowRequestServiceTests
         var service = CreateService(context);
 
         // Act
-        var results = await service.GetIncomingRequestsAsync("lender-1");
+        var result = await service.GetIncomingRequestsAsync("lender-1", new BorrowRequestQuery());
 
         // Assert
-        results.Should().HaveCount(1);
-        var summary = results.First();
+        result.Items.Should().HaveCount(1);
+        var summary = result.Items.First();
         summary.BorrowerName.Should().Be("Borrower User");
         summary.LenderName.Should().Be("Lender User");
         summary.BorrowerName.Should().NotBe("Unknown");
@@ -957,14 +987,269 @@ public class BorrowRequestServiceTests
         var service = CreateService(context);
 
         // Act
-        var results = await service.GetOutgoingRequestsAsync("borrower-1");
+        var result = await service.GetOutgoingRequestsAsync("borrower-1", new BorrowRequestQuery());
 
         // Assert
-        results.Should().HaveCount(1);
-        var summary = results.First();
+        result.Items.Should().HaveCount(1);
+        var summary = result.Items.First();
         summary.BorrowerName.Should().Be("Borrower User");
         summary.LenderName.Should().Be("Lender User");
         summary.BorrowerName.Should().NotBe("Unknown");
         summary.LenderName.Should().NotBe("Unknown");
+    }
+    
+    // -------------------------------------------------------
+    // GetIncomingRequestsAsync — Filtering & Pagination (US-06.14)
+    // -------------------------------------------------------
+
+    [Fact]
+    public async Task GetIncomingRequestsAsync_NoFilter_ReturnsAllStatuses()
+    {
+        // Arrange — one request per status; null filter should return all
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        await SeedRequestsAsync(context, book.Id,
+            BorrowRequestStatus.Pending,
+            BorrowRequestStatus.Approved,
+            BorrowRequestStatus.Declined,
+            BorrowRequestStatus.Cancelled);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetIncomingRequestsAsync("lender-1", new BorrowRequestQuery());
+
+        // Assert
+        result.Items.Should().HaveCount(4);
+        result.TotalCount.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task GetIncomingRequestsAsync_FilterByPending_ReturnsOnlyPending()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        await SeedRequestsAsync(context, book.Id,
+            BorrowRequestStatus.Pending,
+            BorrowRequestStatus.Approved,
+            BorrowRequestStatus.Declined);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetIncomingRequestsAsync(
+            "lender-1",
+            new BorrowRequestQuery { Status = BorrowRequestStatus.Pending });
+
+        // Assert
+        result.Items.Should().HaveCount(1);
+        result.Items.First().Status.Should().Be(BorrowRequestStatus.Pending);
+        result.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetIncomingRequestsAsync_FilterByDeclined_ExcludesNonMatching()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        await SeedRequestsAsync(context, book.Id,
+            BorrowRequestStatus.Pending,
+            BorrowRequestStatus.Approved);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetIncomingRequestsAsync(
+            "lender-1",
+            new BorrowRequestQuery { Status = BorrowRequestStatus.Declined });
+
+        // Assert
+        result.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetIncomingRequestsAsync_Pagination_FirstPageReturnsCorrectSlice()
+    {
+        // Arrange — 3 requests, pageSize 2, page 1 should return 2 items
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        await SeedRequestsAsync(context, book.Id,
+            BorrowRequestStatus.Pending,
+            BorrowRequestStatus.Pending,
+            BorrowRequestStatus.Pending);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetIncomingRequestsAsync(
+            "lender-1",
+            new BorrowRequestQuery { Page = 1, PageSize = 2 });
+
+        // Assert
+        result.Items.Should().HaveCount(2);
+        result.TotalCount.Should().Be(3);
+        result.TotalPages.Should().Be(2);
+        result.HasNextPage.Should().BeTrue();
+        result.HasPreviousPage.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetIncomingRequestsAsync_Pagination_SecondPageReturnsRemainder()
+    {
+        // Arrange — 3 requests, pageSize 2, page 2 should return 1 item
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        await SeedRequestsAsync(context, book.Id,
+            BorrowRequestStatus.Pending,
+            BorrowRequestStatus.Pending,
+            BorrowRequestStatus.Pending);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetIncomingRequestsAsync(
+            "lender-1",
+            new BorrowRequestQuery { Page = 2, PageSize = 2 });
+
+        // Assert
+        result.Items.Should().HaveCount(1);
+        result.TotalCount.Should().Be(3);
+        result.HasNextPage.Should().BeFalse();
+        result.HasPreviousPage.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetIncomingRequestsAsync_SoftDeleted_IsExcluded()
+    {
+        // Arrange — soft-deleted requests should not appear or count
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        await SeedRequestsAsync(context, book.Id,
+            BorrowRequestStatus.Pending,
+            BorrowRequestStatus.Pending);
+
+        // Soft-delete one of them
+        var first = context.BorrowRequests.First();
+        first.IsDeleted = true;
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetIncomingRequestsAsync("lender-1", new BorrowRequestQuery());
+
+        // Assert
+        result.Items.Should().HaveCount(1);
+        result.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetIncomingRequestsAsync_DoesNotReturnRequestsWhereCallerIsBorrower()
+    {
+        // Arrange — guards against a filter-direction bug
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        await SeedRequestsAsync(context, book.Id, BorrowRequestStatus.Pending);
+        var service = CreateService(context);
+
+        // Act — query as the borrower; should see no incoming
+        var result = await service.GetIncomingRequestsAsync("borrower-1", new BorrowRequestQuery());
+
+        // Assert
+        result.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(0);
+    }
+
+    // -------------------------------------------------------
+    // GetOutgoingRequestsAsync — Filtering & Pagination Parity (US-06.14)
+    // -------------------------------------------------------
+
+    [Fact]
+    public async Task GetOutgoingRequestsAsync_NoFilter_ReturnsAllStatuses()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        await SeedRequestsAsync(context, book.Id,
+            BorrowRequestStatus.Pending,
+            BorrowRequestStatus.Approved,
+            BorrowRequestStatus.Cancelled);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetOutgoingRequestsAsync("borrower-1", new BorrowRequestQuery());
+
+        // Assert
+        result.Items.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task GetOutgoingRequestsAsync_FilterByCancelled_ReturnsOnlyCancelled()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        await SeedRequestsAsync(context, book.Id,
+            BorrowRequestStatus.Pending,
+            BorrowRequestStatus.Cancelled);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetOutgoingRequestsAsync(
+            "borrower-1",
+            new BorrowRequestQuery { Status = BorrowRequestStatus.Cancelled });
+
+        // Assert
+        result.Items.Should().HaveCount(1);
+        result.Items.First().Status.Should().Be(BorrowRequestStatus.Cancelled);
+    }
+
+    [Fact]
+    public async Task GetOutgoingRequestsAsync_DoesNotReturnRequestsWhereCallerIsLender()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (_, _, book) = await SeedUsersAndBookAsync(context);
+        await SeedRequestsAsync(context, book.Id, BorrowRequestStatus.Pending);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.GetOutgoingRequestsAsync("lender-1", new BorrowRequestQuery());
+
+        // Assert
+        result.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(0);
+    }
+    
+    [Fact]
+    public async Task PagedResult_WithInvalidPageSize_TotalPagesReturnsZero()
+    {
+        // Arrange — verifies PagedResult.TotalPages defends against PageSize=0
+        // (would have produced int.MinValue under the old division-by-zero path)
+        var result = new PagedResult<BorrowRequestSummary>
+        {
+            Items = new List<BorrowRequestSummary>(),
+            TotalCount = 5,
+            Page = 1,
+            PageSize = 0
+        };
+
+        // Act + Assert
+        result.TotalPages.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task PagedResult_WithZeroTotalCount_TotalPagesReturnsZero()
+    {
+        // Arrange — empty result set should report 0 total pages
+        var result = new PagedResult<BorrowRequestSummary>
+        {
+            Items = new List<BorrowRequestSummary>(),
+            TotalCount = 0,
+            Page = 1,
+            PageSize = 20
+        };
+
+        // Act + Assert
+        result.TotalPages.Should().Be(0);
+        result.HasNextPage.Should().BeFalse();
     }
 }
