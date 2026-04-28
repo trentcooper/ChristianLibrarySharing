@@ -25,4 +25,8 @@ public class LoanSummary
     public BookCondition? ConditionAtReturn { get; set; }
     public string? LenderNotes { get; set; }
     public string? BorrowerNotes { get; set; }
+    
+    public DateTime? RequestedExtensionDate { get; set; }
+    
+    public string? ExtensionRequestMessage { get; set; }
 }

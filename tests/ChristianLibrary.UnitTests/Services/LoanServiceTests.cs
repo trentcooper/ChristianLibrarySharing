@@ -2,10 +2,12 @@
 using ChristianLibrary.Domain.Entities;
 using ChristianLibrary.Domain.Enums;
 using ChristianLibrary.Services;
+using ChristianLibrary.Services.Configuration;
 using ChristianLibrary.Services.DTOs.Loans;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace ChristianLibrary.UnitTests.Services;
@@ -25,10 +27,13 @@ public class LoanServiceTests
         return new ApplicationDbContext(options);
     }
 
-    private static LoanService CreateService(ApplicationDbContext context)
+    private static LoanService CreateService(
+        ApplicationDbContext context,
+        int maxExtensionDays = 21)
     {
         var logger = new Mock<ILogger<LoanService>>().Object;
-        return new LoanService(context, logger);
+        var loanSettings = Options.Create(new LoanSettings { MaxExtensionDays = maxExtensionDays });
+        return new LoanService(context, logger, loanSettings);
     }
 
     // -------------------------------------------------------
@@ -745,4 +750,355 @@ public class LoanServiceTests
         result.Items.Should().BeInDescendingOrder(l => l.StartDate);
     }
     
+    // -------------------------------------------------------
+    // RequestExtensionAsync Tests (US-06.11)
+    // -------------------------------------------------------
+
+    [Fact]
+    public async Task RequestExtensionAsync_Success_TransitionsLoanToExtensionRequested()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (_, _, _, _, loan) = await SeedAsync(context);
+        var service = CreateService(context);
+        var newDueDate = loan.DueDate.AddDays(7);
+        var request = new RequestExtensionRequest
+        {
+            RequestedDueDate = newDueDate,
+            Message = "Need a bit more time, thanks!"
+        };
+
+        // Act
+        var result = await service.RequestExtensionAsync(loan.Id, "borrower-1", request);
+
+        // Assert
+        result.Success.Should().BeTrue();
+
+        var updated = await context.Loans.FindAsync(loan.Id);
+        updated!.Status.Should().Be(LoanStatus.ExtensionRequested);
+        updated.ExtensionRequested.Should().BeTrue();
+        updated.RequestedExtensionDate.Should().Be(newDueDate);
+        updated.ExtensionRequestMessage.Should().Be("Need a bit more time, thanks!");
+        // DueDate not changed yet — only on approval
+        updated.DueDate.Should().Be(loan.DueDate);
+    }
+
+    [Fact]
+    public async Task RequestExtensionAsync_OverdueLoan_CanRequestExtension()
+    {
+        // Arrange — borrower can request extension even when loan has gone overdue
+        await using var context = CreateInMemoryContext();
+        var (_, _, _, _, loan) = await SeedAsync(context, LoanStatus.Overdue);
+        var service = CreateService(context);
+        var request = new RequestExtensionRequest
+        {
+            RequestedDueDate = loan.DueDate.AddDays(7)
+        };
+
+        // Act
+        var result = await service.RequestExtensionAsync(loan.Id, "borrower-1", request);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        var updated = await context.Loans.FindAsync(loan.Id);
+        updated!.Status.Should().Be(LoanStatus.ExtensionRequested);
+    }
+
+    [Fact]
+    public async Task RequestExtensionAsync_LoanNotFound_ReturnsFailure()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context);
+        var service = CreateService(context);
+        var request = new RequestExtensionRequest { RequestedDueDate = DateTime.UtcNow.AddDays(7) };
+
+        // Act
+        var result = await service.RequestExtensionAsync(999, "borrower-1", request);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("not found");
+    }
+
+    [Fact]
+    public async Task RequestExtensionAsync_WrongBorrower_ReturnsFailureWithPermission()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (_, _, _, _, loan) = await SeedAsync(context);
+        var service = CreateService(context);
+        var request = new RequestExtensionRequest { RequestedDueDate = loan.DueDate.AddDays(7) };
+
+        // Act — lender attempts to request an extension on the borrower's behalf
+        var result = await service.RequestExtensionAsync(loan.Id, "lender-1", request);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("permission");
+    }
+
+    [Fact]
+    public async Task RequestExtensionAsync_LoanReturned_ReturnsFailure()
+    {
+        // Arrange — terminal status: Returned loans cannot be extended
+        await using var context = CreateInMemoryContext();
+        var (_, _, _, _, loan) = await SeedAsync(context, LoanStatus.Returned);
+        var service = CreateService(context);
+        var request = new RequestExtensionRequest { RequestedDueDate = loan.DueDate.AddDays(7) };
+
+        // Act
+        var result = await service.RequestExtensionAsync(loan.Id, "borrower-1", request);
+
+        // Assert
+        result.Success.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RequestExtensionAsync_RequestedDateNotAfterCurrentDueDate_ReturnsFailure()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (_, _, _, _, loan) = await SeedAsync(context);
+        var service = CreateService(context);
+        var request = new RequestExtensionRequest { RequestedDueDate = loan.DueDate };
+
+        // Act
+        var result = await service.RequestExtensionAsync(loan.Id, "borrower-1", request);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("after the current due date");
+    }
+
+    [Fact]
+    public async Task RequestExtensionAsync_ExceedsMaxExtensionDays_ReturnsFailure()
+    {
+        // Arrange — settings cap at 7 days, request 14
+        await using var context = CreateInMemoryContext();
+        var (_, _, _, _, loan) = await SeedAsync(context);
+        var service = CreateService(context, maxExtensionDays: 7);
+        var request = new RequestExtensionRequest { RequestedDueDate = loan.DueDate.AddDays(14) };
+
+        // Act
+        var result = await service.RequestExtensionAsync(loan.Id, "borrower-1", request);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("7 days");
+    }
+
+    [Fact]
+    public async Task RequestExtensionAsync_PendingExtensionAlreadyExists_ReturnsFailure()
+    {
+        // Arrange — first request transitions to ExtensionRequested, second cannot proceed
+        await using var context = CreateInMemoryContext();
+        var (_, _, _, _, loan) = await SeedAsync(context, LoanStatus.ExtensionRequested);
+        var service = CreateService(context);
+        var request = new RequestExtensionRequest { RequestedDueDate = loan.DueDate.AddDays(7) };
+
+        // Act
+        var result = await service.RequestExtensionAsync(loan.Id, "borrower-1", request);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("already pending");
+    }
+
+    [Fact]
+    public async Task RequestExtensionAsync_AfterPriorApproval_AllowsAnotherExtensionRequest()
+    {
+        // Arrange — confirms multiple extensions over the loan's lifetime are allowed
+        // (this is one of the design decisions captured in US-06.11 acceptance criteria)
+        await using var context = CreateInMemoryContext();
+        var (_, _, _, _, loan) = await SeedAsync(context);
+        var service = CreateService(context);
+        var firstRequest = new RequestExtensionRequest { RequestedDueDate = loan.DueDate.AddDays(7) };
+
+        // Act 1 — request, then approve
+        await service.RequestExtensionAsync(loan.Id, "borrower-1", firstRequest);
+        await service.ApproveExtensionAsync(loan.Id, "lender-1");
+
+        // Act 2 — request a second extension
+        var refreshed = await context.Loans.FindAsync(loan.Id);
+        var secondRequest = new RequestExtensionRequest { RequestedDueDate = refreshed!.DueDate.AddDays(7) };
+        var result = await service.RequestExtensionAsync(loan.Id, "borrower-1", secondRequest);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        var final = await context.Loans.FindAsync(loan.Id);
+        final!.Status.Should().Be(LoanStatus.ExtensionRequested);
+        final.ExtensionDays.Should().Be(7); // accumulated from the first approval; second not yet approved
+    }
+
+    // -------------------------------------------------------
+    // ApproveExtensionAsync Tests (US-06.11)
+    // -------------------------------------------------------
+
+    [Fact]
+    public async Task ApproveExtensionAsync_Success_UpdatesDueDateAndAccumulatesDays()
+    {
+        // Arrange — set up a loan with a pending extension
+        await using var context = CreateInMemoryContext();
+        var (_, _, _, _, loan) = await SeedAsync(context);
+        var originalDueDate = loan.DueDate;
+        var newDueDate = loan.DueDate.AddDays(10);
+        loan.Status = LoanStatus.ExtensionRequested;
+        loan.ExtensionRequested = true;
+        loan.RequestedExtensionDate = newDueDate;
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.ApproveExtensionAsync(loan.Id, "lender-1");
+
+        // Assert
+        result.Success.Should().BeTrue();
+        var updated = await context.Loans.FindAsync(loan.Id);
+        updated!.DueDate.Should().Be(newDueDate);
+        updated.Status.Should().Be(LoanStatus.Active);
+        updated.ExtensionRequested.Should().BeFalse();
+        updated.ExtensionDays.Should().Be(10);
+        // Audit breadcrumb retained
+        updated.RequestedExtensionDate.Should().Be(newDueDate);
+    }
+
+    [Fact]
+    public async Task ApproveExtensionAsync_LoanNotFound_ReturnsFailure()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        await SeedAsync(context);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.ApproveExtensionAsync(999, "lender-1");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("not found");
+    }
+
+    [Fact]
+    public async Task ApproveExtensionAsync_WrongLender_ReturnsFailureWithPermission()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (_, _, _, _, loan) = await SeedAsync(context, LoanStatus.ExtensionRequested);
+        loan.RequestedExtensionDate = loan.DueDate.AddDays(7);
+        await context.SaveChangesAsync();
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.ApproveExtensionAsync(loan.Id, "wrong-user");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("permission");
+    }
+
+    [Fact]
+    public async Task ApproveExtensionAsync_NoPendingExtension_ReturnsFailure()
+    {
+        // Arrange — loan is Active, never had an extension requested
+        await using var context = CreateInMemoryContext();
+        var (_, _, _, _, loan) = await SeedAsync(context);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.ApproveExtensionAsync(loan.Id, "lender-1");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("no pending extension request");
+    }
+
+    // -------------------------------------------------------
+    // DeclineExtensionAsync Tests (US-06.11)
+    // -------------------------------------------------------
+
+    [Fact]
+    public async Task DeclineExtensionAsync_Success_RestoresActiveStatusWhenNotOverdue()
+    {
+        // Arrange — pending extension on a loan whose current DueDate is in the future
+        await using var context = CreateInMemoryContext();
+        var (_, _, _, _, loan) = await SeedAsync(context);
+        loan.Status = LoanStatus.ExtensionRequested;
+        loan.ExtensionRequested = true;
+        loan.RequestedExtensionDate = loan.DueDate.AddDays(7);
+        loan.ExtensionRequestMessage = "Please?";
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context);
+        var originalDueDate = loan.DueDate;
+
+        // Act
+        var result = await service.DeclineExtensionAsync(loan.Id, "lender-1");
+
+        // Assert
+        result.Success.Should().BeTrue();
+        var updated = await context.Loans.FindAsync(loan.Id);
+        updated!.Status.Should().Be(LoanStatus.Active);
+        updated.ExtensionRequested.Should().BeFalse();
+        updated.DueDate.Should().Be(originalDueDate);
+        // Audit breadcrumb retained
+        updated.RequestedExtensionDate.Should().NotBeNull();
+        updated.ExtensionRequestMessage.Should().Be("Please?");
+    }
+
+    [Fact]
+    public async Task DeclineExtensionAsync_OverdueLoan_RestoresOverdueStatus()
+    {
+        // Arrange — DueDate already in the past at decline time
+        await using var context = CreateInMemoryContext();
+        var (_, _, _, _, loan) = await SeedAsync(context);
+        loan.DueDate = DateTime.UtcNow.AddDays(-1);
+        loan.Status = LoanStatus.ExtensionRequested;
+        loan.ExtensionRequested = true;
+        loan.RequestedExtensionDate = DateTime.UtcNow.AddDays(7);
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.DeclineExtensionAsync(loan.Id, "lender-1");
+
+        // Assert
+        result.Success.Should().BeTrue();
+        var updated = await context.Loans.FindAsync(loan.Id);
+        updated!.Status.Should().Be(LoanStatus.Overdue);
+    }
+
+    [Fact]
+    public async Task DeclineExtensionAsync_WrongLender_ReturnsFailureWithPermission()
+    {
+        // Arrange
+        await using var context = CreateInMemoryContext();
+        var (_, _, _, _, loan) = await SeedAsync(context, LoanStatus.ExtensionRequested);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.DeclineExtensionAsync(loan.Id, "wrong-user");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("permission");
+    }
+
+    [Fact]
+    public async Task DeclineExtensionAsync_NoPendingExtension_ReturnsFailure()
+    {
+        // Arrange — loan is Active, no extension requested
+        await using var context = CreateInMemoryContext();
+        var (_, _, _, _, loan) = await SeedAsync(context);
+        var service = CreateService(context);
+
+        // Act
+        var result = await service.DeclineExtensionAsync(loan.Id, "lender-1");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("no pending extension request");
+    }
 }

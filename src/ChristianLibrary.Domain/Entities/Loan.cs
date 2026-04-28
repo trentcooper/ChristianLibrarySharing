@@ -79,6 +79,20 @@ namespace ChristianLibrary.Domain.Entities
         [MaxLength(1000)]
         public string? BorrowerNotes { get; set; }
         
+        /// <summary>
+        /// New due date proposed by the borrower in a pending extension request.
+        /// Populated when an extension is requested; remains as audit breadcrumb after decision.
+        /// Maps to US-06.11
+        /// </summary>
+        public DateTime? RequestedExtensionDate { get; set; }
+
+        /// <summary>
+        /// Optional message from the borrower accompanying an extension request.
+        /// Maps to US-06.11
+        /// </summary>
+        [MaxLength(1000)]
+        public string? ExtensionRequestMessage { get; set; }
+        
         
         // ── Condition Tracking ─────────────────────────────────────────────────
 

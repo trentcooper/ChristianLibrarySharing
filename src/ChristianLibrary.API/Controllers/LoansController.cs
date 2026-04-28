@@ -112,4 +112,121 @@ public class LoansController : ControllerBase
 
         return Ok(result);
     }
+    
+    // -------------------------------------------------------
+    // US-06.11: Request loan extension (borrower)
+    // -------------------------------------------------------
+
+    /// <summary>
+    /// Borrower requests an extension on a loan they currently hold
+    /// </summary>
+    [HttpPost("{id}/request-extension")]
+    [ProducesResponseType(typeof(LoanResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(LoanResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(LoanResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> RequestExtension(int id, [FromBody] RequestExtensionRequest request)
+    {
+        var borrowerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(borrowerId))
+            return Unauthorized();
+
+        _logger.LogInformation(
+            "POST /api/loans/{LoanId}/request-extension - BorrowerId={BorrowerId}, RequestedDueDate={RequestedDueDate}",
+            id, borrowerId, request.RequestedDueDate);
+
+        var response = await _loanService.RequestExtensionAsync(id, borrowerId, request);
+
+        if (!response.Success)
+        {
+            _logger.LogWarning(
+                "RequestExtension failed for loan {LoanId} by borrower {BorrowerId}: {Message}",
+                id, borrowerId, response.Message);
+
+            if (response.Message.Contains("permission"))
+                return StatusCode(StatusCodes.Status403Forbidden, response);
+
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    // -------------------------------------------------------
+    // US-06.11: Approve loan extension request (lender)
+    // -------------------------------------------------------
+
+    /// <summary>
+    /// Lender approves a pending extension request on a loan they own
+    /// </summary>
+    [HttpPost("{id}/approve-extension")]
+    [ProducesResponseType(typeof(LoanResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(LoanResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(LoanResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> ApproveExtension(int id)
+    {
+        var lenderId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(lenderId))
+            return Unauthorized();
+
+        _logger.LogInformation(
+            "POST /api/loans/{LoanId}/approve-extension - LenderId={LenderId}",
+            id, lenderId);
+
+        var response = await _loanService.ApproveExtensionAsync(id, lenderId);
+
+        if (!response.Success)
+        {
+            _logger.LogWarning(
+                "ApproveExtension failed for loan {LoanId} by lender {LenderId}: {Message}",
+                id, lenderId, response.Message);
+
+            if (response.Message.Contains("permission"))
+                return StatusCode(StatusCodes.Status403Forbidden, response);
+
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    // -------------------------------------------------------
+    // US-06.11: Decline loan extension request (lender)
+    // -------------------------------------------------------
+
+    /// <summary>
+    /// Lender declines a pending extension request on a loan they own
+    /// </summary>
+    [HttpPost("{id}/decline-extension")]
+    [ProducesResponseType(typeof(LoanResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(LoanResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(LoanResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> DeclineExtension(int id)
+    {
+        var lenderId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(lenderId))
+            return Unauthorized();
+
+        _logger.LogInformation(
+            "POST /api/loans/{LoanId}/decline-extension - LenderId={LenderId}",
+            id, lenderId);
+
+        var response = await _loanService.DeclineExtensionAsync(id, lenderId);
+
+        if (!response.Success)
+        {
+            _logger.LogWarning(
+                "DeclineExtension failed for loan {LoanId} by lender {LenderId}: {Message}",
+                id, lenderId, response.Message);
+
+            if (response.Message.Contains("permission"))
+                return StatusCode(StatusCodes.Status403Forbidden, response);
+
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
 }

@@ -32,4 +32,29 @@ public interface ILoanService
     Task<PagedResult<LoanSummary>> GetMyLoansAsync(
         string lenderId,
         LoanQuery query);
+    
+    /// <summary>
+    /// Borrower requests an extension on an Active or Overdue loan
+    /// Maps to US-06.11
+    /// </summary>
+    Task<LoanResponse> RequestExtensionAsync(
+        int loanId,
+        string borrowerId,
+        RequestExtensionRequest request);
+
+    /// <summary>
+    /// Lender approves a pending extension request
+    /// Maps to US-06.11
+    /// </summary>
+    Task<LoanResponse> ApproveExtensionAsync(
+        int loanId,
+        string lenderId);
+
+    /// <summary>
+    /// Lender declines a pending extension request
+    /// Maps to US-06.11
+    /// </summary>
+    Task<LoanResponse> DeclineExtensionAsync(
+        int loanId,
+        string lenderId);
 }

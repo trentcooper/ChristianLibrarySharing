@@ -5,6 +5,8 @@ using ChristianLibrary.Domain.Entities;
 using ChristianLibrary.Services.DTOs.Common;
 using ChristianLibrary.Services.DTOs.Loans;
 using ChristianLibrary.Services.Interfaces;
+using ChristianLibrary.Services.Configuration;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 
 namespace ChristianLibrary.Services;
@@ -16,11 +18,16 @@ public class LoanService : ILoanService
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<LoanService> _logger;
+    private readonly LoanSettings _loanSettings;
 
-    public LoanService(ApplicationDbContext context, ILogger<LoanService> logger)
+    public LoanService(
+        ApplicationDbContext context,
+        ILogger<LoanService> logger,
+        IOptions<LoanSettings> loanSettings)
     {
         _context = context;
         _logger = logger;
+        _loanSettings = loanSettings.Value;
     }
 
     // -------------------------------------------------------
@@ -41,6 +48,9 @@ public class LoanService : ILoanService
             if (loan.LenderId != lenderId)
                 return LoanResponse.CreateFailure("You do not have permission to mark this loan as returned.");
 
+            // Status must be Active or Overdue. ExtensionRequested is deliberately
+            // excluded — the workflow forces the lender to approve or decline a
+            // pending extension before the loan can be closed. See US-06.11.
             if (loan.Status != LoanStatus.Active && loan.Status != LoanStatus.Overdue)
                 return LoanResponse.CreateFailure(
                     $"This loan cannot be marked as returned as it is currently {loan.Status}.");
@@ -165,6 +175,177 @@ public class LoanService : ILoanService
             return new PagedResult<LoanSummary>();
         }
     }
+    
+    // -------------------------------------------------------
+    // US-06.11: Request Loan Extension
+    // -------------------------------------------------------
+
+    /// <summary>
+    /// Borrower requests an extension on an Active or Overdue loan they currently hold.
+    /// Validates: caller is the borrower, loan is Active or Overdue, no pending extension exists,
+    /// requested date is after current DueDate, and within MaxExtensionDays of the current DueDate.
+    /// </summary>
+    public async Task<LoanResponse> RequestExtensionAsync(
+        int loanId,
+        string borrowerId,
+        RequestExtensionRequest request)
+    {
+        _logger.LogInformation(
+            "RequestExtension - LoanId={LoanId}, BorrowerId={BorrowerId}, RequestedDueDate={RequestedDueDate}",
+            loanId, borrowerId, request.RequestedDueDate);
+
+        try
+        {
+            var loan = await _context.Loans
+                .FirstOrDefaultAsync(l => l.Id == loanId && !l.IsDeleted);
+
+            if (loan == null)
+                return LoanResponse.CreateFailure("Loan not found.");
+
+            if (loan.BorrowerId != borrowerId)
+                return LoanResponse.CreateFailure(
+                    "You do not have permission to request an extension on this loan.");
+            
+            if (loan.Status == LoanStatus.ExtensionRequested)
+                return LoanResponse.CreateFailure(
+                    "An extension request is already pending on this loan.");
+
+            if (loan.Status != LoanStatus.Active && loan.Status != LoanStatus.Overdue)
+                return LoanResponse.CreateFailure(
+                    $"This loan cannot be extended as it is currently {loan.Status}.");
+
+            if (request.RequestedDueDate <= loan.DueDate)
+                return LoanResponse.CreateFailure(
+                    "Requested due date must be after the current due date.");
+
+            var extensionDays = (request.RequestedDueDate - loan.DueDate).Days;
+            if (extensionDays > _loanSettings.MaxExtensionDays)
+                return LoanResponse.CreateFailure(
+                    $"Extension cannot exceed {_loanSettings.MaxExtensionDays} days from the current due date.");
+
+            // Capture the request on the loan
+            loan.Status = LoanStatus.ExtensionRequested;
+            loan.ExtensionRequested = true;
+            loan.RequestedExtensionDate = request.RequestedDueDate;
+            loan.ExtensionRequestMessage = request.Message?.Trim();
+            loan.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Loan {LoanId} extension requested by borrower {BorrowerId} until {RequestedDueDate}",
+                loanId, borrowerId, request.RequestedDueDate);
+
+            return LoanResponse.CreateSuccess(
+                "Extension request submitted. The lender will be notified.",
+                loan.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error requesting extension for loan {LoanId}", loanId);
+            return LoanResponse.CreateFailure(
+                "An unexpected error occurred while submitting the extension request.");
+        }
+    }
+
+    /// <summary>
+    /// Lender approves a pending extension request, updating the loan's DueDate
+    /// and resetting status to Active.
+    /// </summary>
+    public async Task<LoanResponse> ApproveExtensionAsync(int loanId, string lenderId)
+    {
+        _logger.LogInformation(
+            "ApproveExtension - LoanId={LoanId}, LenderId={LenderId}", loanId, lenderId);
+
+        try
+        {
+            var loan = await _context.Loans
+                .FirstOrDefaultAsync(l => l.Id == loanId && !l.IsDeleted);
+
+            if (loan == null)
+                return LoanResponse.CreateFailure("Loan not found.");
+
+            if (loan.LenderId != lenderId)
+                return LoanResponse.CreateFailure(
+                    "You do not have permission to approve this extension request.");
+
+            if (loan.Status != LoanStatus.ExtensionRequested || loan.RequestedExtensionDate == null)
+                return LoanResponse.CreateFailure("There is no pending extension request on this loan.");
+
+            // Apply the extension
+            var addedDays = (loan.RequestedExtensionDate.Value - loan.DueDate).Days;
+            loan.DueDate = loan.RequestedExtensionDate.Value;
+            loan.ExtensionDays += addedDays;
+            loan.Status = LoanStatus.Active;
+            loan.ExtensionRequested = false;
+            loan.UpdatedAt = DateTime.UtcNow;
+            // RequestedExtensionDate and ExtensionRequestMessage retained as audit breadcrumb
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Loan {LoanId} extension approved by lender {LenderId}; new DueDate={DueDate}, ExtensionDays={ExtensionDays}",
+                loanId, lenderId, loan.DueDate, loan.ExtensionDays);
+
+            return LoanResponse.CreateSuccess(
+                "Extension approved. The borrower has been notified.",
+                loan.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error approving extension for loan {LoanId}", loanId);
+            return LoanResponse.CreateFailure(
+                "An unexpected error occurred while approving the extension request.");
+        }
+    }
+
+    /// <summary>
+    /// Lender declines a pending extension request, returning the loan to its prior state
+    /// (Active or Overdue) based on the current DueDate.
+    /// </summary>
+    public async Task<LoanResponse> DeclineExtensionAsync(int loanId, string lenderId)
+    {
+        _logger.LogInformation(
+            "DeclineExtension - LoanId={LoanId}, LenderId={LenderId}", loanId, lenderId);
+
+        try
+        {
+            var loan = await _context.Loans
+                .FirstOrDefaultAsync(l => l.Id == loanId && !l.IsDeleted);
+
+            if (loan == null)
+                return LoanResponse.CreateFailure("Loan not found.");
+
+            if (loan.LenderId != lenderId)
+                return LoanResponse.CreateFailure(
+                    "You do not have permission to decline this extension request.");
+
+            if (loan.Status != LoanStatus.ExtensionRequested)
+                return LoanResponse.CreateFailure("There is no pending extension request on this loan.");
+
+            // Restore prior status based on current DueDate
+            loan.Status = DateTime.UtcNow > loan.DueDate ? LoanStatus.Overdue : LoanStatus.Active;
+            loan.ExtensionRequested = false;
+            loan.UpdatedAt = DateTime.UtcNow;
+            // RequestedExtensionDate and ExtensionRequestMessage retained as audit breadcrumb
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Loan {LoanId} extension declined by lender {LenderId}; status restored to {Status}",
+                loanId, lenderId, loan.Status);
+
+            return LoanResponse.CreateSuccess(
+                "Extension request declined.",
+                loan.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error declining extension for loan {LoanId}", loanId);
+            return LoanResponse.CreateFailure(
+                "An unexpected error occurred while declining the extension request.");
+        }
+    }
 
     // -------------------------------------------------------
     // Private Helpers
@@ -190,6 +371,8 @@ public class LoanService : ILoanService
             ConditionAtCheckout = l.ConditionAtCheckout,
             ConditionAtReturn = l.ConditionAtReturn,
             LenderNotes = l.LenderNotes,
-            BorrowerNotes = l.BorrowerNotes
+            BorrowerNotes = l.BorrowerNotes,
+            RequestedExtensionDate = l.RequestedExtensionDate,
+            ExtensionRequestMessage = l.ExtensionRequestMessage
         };
 }

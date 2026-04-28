@@ -102,6 +102,15 @@ try
     }
 
     builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
+    
+    // Configure Loan Settings
+    var loanSettings = builder.Configuration.GetSection(LoanSettings.SectionName).Get<LoanSettings>();
+    if (loanSettings == null || loanSettings.MaxExtensionDays <= 0)
+    {
+        throw new InvalidOperationException("Loan settings are not properly configured in appsettings.json");
+    }
+
+    builder.Services.Configure<LoanSettings>(builder.Configuration.GetSection(LoanSettings.SectionName));
 
     // Configure JWT Authentication
     builder.Services.AddAuthentication(options =>

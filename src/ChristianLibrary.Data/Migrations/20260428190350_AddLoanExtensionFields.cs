@@ -1,0 +1,40 @@
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace ChristianLibrary.Data.Migrations
+{
+    /// <inheritdoc />
+    public partial class AddLoanExtensionFields : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AddColumn<string>(
+                name: "ExtensionRequestMessage",
+                table: "Loans",
+                type: "nvarchar(1000)",
+                maxLength: 1000,
+                nullable: true);
+
+            migrationBuilder.AddColumn<DateTime>(
+                name: "RequestedExtensionDate",
+                table: "Loans",
+                type: "datetime2",
+                nullable: true);
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropColumn(
+                name: "ExtensionRequestMessage",
+                table: "Loans");
+
+            migrationBuilder.DropColumn(
+                name: "RequestedExtensionDate",
+                table: "Loans");
+        }
+    }
+}
