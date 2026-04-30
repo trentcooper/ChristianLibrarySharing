@@ -70,6 +70,12 @@ namespace ChristianLibrary.Data.Configurations
             
             builder.Property(l => l.ConditionAtReturn)
                 .HasConversion<int>();
+            
+            builder.Property(l => l.LastReminderCategory)
+                .HasConversion<int>();
+
+            // LastReminderOffsetDays (int?) and LastReminderSentAt (DateTime?)
+            // need no explicit configuration — EF Core handles nullable primitives correctly by default.
 
             // Computed properties (ignored - calculated in code)
             builder.Ignore(l => l.IsOverdue);

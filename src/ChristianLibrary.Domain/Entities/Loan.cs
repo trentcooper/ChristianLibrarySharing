@@ -136,5 +136,29 @@ namespace ChristianLibrary.Domain.Entities
         /// Computed property: days until due (negative if overdue)
         /// </summary>
         public int DaysUntilDue => (DueDate - DateTime.UtcNow).Days;
+        
+        // ── Reminder Tracking ──────────────────────────────────────────────────
+
+        /// <summary>
+        /// Category of the most recent reminder fired for this loan.
+        /// Null if no reminder has ever fired.
+        /// Maps to US-06.10
+        /// </summary>
+        public ReminderCategory? LastReminderCategory { get; set; }
+
+        /// <summary>
+        /// Offset in days (relative to DueDate) of the most recent reminder fired.
+        /// Negative = before due, zero = on due, positive = overdue.
+        /// Null if no reminder has ever fired.
+        /// Maps to US-06.10
+        /// </summary>
+        public int? LastReminderOffsetDays { get; set; }
+
+        /// <summary>
+        /// UTC timestamp of when the most recent reminder fired.
+        /// Null if no reminder has ever fired.
+        /// Maps to US-06.10
+        /// </summary>
+        public DateTime? LastReminderSentAt { get; set; }
     }
 }

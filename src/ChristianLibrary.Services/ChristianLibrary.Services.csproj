@@ -4,6 +4,7 @@
     <ProjectReference Include="..\ChristianLibrary.Domain\ChristianLibrary.Domain.csproj" />
     <ProjectReference Include="..\ChristianLibrary.Data\ChristianLibrary.Data.csproj" />
     <ProjectReference Include="..\ChristianLibrary.Common\ChristianLibrary.Common.csproj" />
+    <ProjectReference Include="..\ChristianLibrary.Notifications\ChristianLibrary.Notifications.csproj" />
   </ItemGroup>
 
   <ItemGroup>
