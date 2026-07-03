@@ -27,6 +27,7 @@
     <ProjectReference Include="..\..\src\ChristianLibrary.Domain\ChristianLibrary.Domain.csproj" />
     <ProjectReference Include="..\..\src\ChristianLibrary.Data\ChristianLibrary.Data.csproj" />
     <ProjectReference Include="..\..\src\ChristianLibrary.Services\ChristianLibrary.Services.csproj" />
+    <ProjectReference Include="..\..\src\ChristianLibrary.Notifications\ChristianLibrary.Notifications.csproj" />
   </ItemGroup>
 
 </Project>

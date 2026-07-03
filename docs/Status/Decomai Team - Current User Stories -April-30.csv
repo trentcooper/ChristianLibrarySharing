@@ -1,0 +1,110 @@
+﻿ID,Work Item Type,Title,State,Story Points,Value Area,Iteration Path,Tags
+79,User Story,US-01.01: Set up .NET solution structure,Closed,1,Business,Decomai,EPIC-01; MVP
+80,User Story,US-01.02: Configure Entity Framework Core and database,Closed,1,Business,Decomai,EPIC-01; MVP
+81,User Story,US-01.03: Implement Repository Pattern and Unit of Work,Closed,1,Business,Decomai,EPIC-01; MVP
+82,User Story,US-01.04: Set up CI/CD pipeline,Active,2,Business,Decomai,Deferred; EPIC-01; MVP
+85,User Story,US-02.01: Configure ASP.NET Core Identity,Closed,2,Business,Decomai,EPIC-02; MVP
+185,User Story,TD: Email Confirmation Token Size Needs to be Longer than 6 Digits,Active,3,Business,Decomai\Iteration 1,Low Priority; Post-MVP; Technical Debt
+83,User Story,US-01.05: Configure logging with Serilog,Closed,1,Business,Decomai,EPIC-01; MVP
+86,User Story,US-02.02: Implement user registration,Closed,5,Business,Decomai,EPIC-02; MVP
+87,User Story,US-02.03: Implement user login with JWT,Closed,5,Business,Decomai,EPIC-02; MVP
+90,User Story,US-02.06: Implement role-based authorization,Closed,3,Business,Decomai,EPIC-02; MVP
+88,User Story,US-02.04: Implement password reset functionality,Closed,3,Business,Decomai,EPIC-02; MVP
+89,User Story,US-02.05: Implement email confirmation,Closed,3,Business,Decomai,EPIC-02; MVP
+93,User Story,US-03.01: Create user profile data model,Closed,1,Business,Decomai,EPIC-03; MVP
+94,User Story,US-03.02: Implement location/address management,Closed,1,Business,Decomai,EPIC-03; MVP
+95,User Story,US-03.03: Implement profile visibility settings,Closed,1,Business,Decomai,EPIC-03; MVP
+97,User Story,US-03.05: Implement notification preferences,Closed,1,Business,Decomai,EPIC-03; MVP
+100,User Story,US-04.01: Create book data model,Closed,1,Business,Decomai,EPIC-04; MVP
+101,User Story,US-04.02: Add book manually to catalog,Closed,1,Business,Decomai,EPIC-04; MVP
+102,User Story,US-04.03: Add book via ISBN lookup,Closed,2,Business,Decomai,EPIC-04; MVP
+103,User Story,US-04.04: Edit book details,Closed,1,Business,Decomai,EPIC-04; MVP
+104,User Story,US-04.05: Delete book from catalog,Closed,1,Business,Decomai,EPIC-04; MVP
+105,User Story,US-04.06: Mark book availability status,Closed,1,Business,Decomai,EPIC-04; MVP
+107,User Story,US-04.08: View my book collection,Closed,1,Business,Decomai,EPIC-04; MVP
+109,User Story,US-05.01: Implement basic book search,Closed,1,Business,Decomai,EPIC-05; MVP
+110,User Story,US-05.02: Implement geographic search/filtering,Closed,2,Business,Decomai,EPIC-05; MVP
+111,User Story,US-05.03: Implement advanced filters,Closed,1,Business,Decomai,EPIC-05; MVP
+112,User Story,US-05.04: Implement search result sorting,Closed,1,Business,Decomai,EPIC-05; MVP
+113,User Story,US-05.05: Implement book detail page,Closed,1,Business,Decomai,EPIC-05; MVP
+117,User Story,US-06.01: Create borrow request data model,Closed,1,Business,Decomai,EPIC-06; MVP
+118,User Story,US-06.02: Request to borrow a book,Closed,1,Business,Decomai,EPIC-06; MVP
+119,User Story,US-06.03: View incoming borrow requests,Closed,1,Business,Decomai,EPIC-06; MVP
+120,User Story,US-06.04: Approve borrow request,Closed,1,Business,Decomai,EPIC-06; MVP
+121,User Story,US-06.05: Decline borrow request,Closed,1,Business,Decomai,EPIC-06; MVP
+122,User Story,US-06.06: Mark book as picked up/borrowed,Closed,1,Business,Decomai,EPIC-06; MVP
+123,User Story,US-06.07: Mark book as returned,Closed,1,Business,Decomai,EPIC-06; MVP
+124,User Story,US-06.08: View my active borrows (as borrower),Closed,1,Business,Decomai,EPIC-06; MVP
+125,User Story,US-06.09: View my active loans (as owner),Closed,1,Business,Decomai,EPIC-06; MVP
+126,User Story,US-06.10: Send overdue reminders,New,2,Business,Decomai,EPIC-06; MVP
+127,User Story,US-06.11: Request loan extension,Closed,1,Business,Decomai,EPIC-06; MVP
+128,User Story,US-06.12: Cancel borrow request,Closed,1,Business,Decomai,EPIC-06; MVP
+131,User Story,US-07.01: Set up email infrastructure,New,1,Business,Decomai,EPIC-07; MVP
+132,User Story,US-07.02: Create email templates,New,1,Business,Decomai,EPIC-07; MVP
+133,User Story,US-07.03: Notification for new borrow request,New,1,Business,Decomai,EPIC-07; MVP
+134,User Story,US-07.04: Notification for request approval,New,1,Business,Decomai,EPIC-07; MVP
+135,User Story,US-07.05: Notification for request denial,New,1,Business,Decomai,EPIC-07; MVP
+136,User Story,US-07.06: Notification for due date reminders,New,1,Business,Decomai,EPIC-07; MVP
+137,User Story,US-07.07: Notification for book returned,New,1,Business,Decomai,EPIC-07; MVP
+138,User Story,US-07.08: Implement notification queue/job system,New,1,Business,Decomai,EPIC-07; MVP
+140,User Story,US-08.01: Set up frontend project structure,New,1,Business,Decomai,EPIC-08; MVP
+141,User Story,US-08.02: Design and implement UI component library,New,2,Business,Decomai,EPIC-08; MVP
+142,User Story,US-08.03: Implement home/landing page,New,1,Business,Decomai,EPIC-08; MVP
+143,User Story,US-08.04: Implement registration page,New,1,Business,Decomai,EPIC-08; MVP
+144,User Story,US-08.05: Implement login page,New,1,Business,Decomai,EPIC-08; MVP
+145,User Story,US-08.06: Implement user dashboard,New,1,Business,Decomai,EPIC-08; MVP
+146,User Story,US-08.07: Implement book catalog pages,New,2,Business,Decomai,EPIC-08; MVP
+147,User Story,US-08.08: Implement book search page,Active,2,Business,Decomai,EPIC-08; MVP
+148,User Story,US-08.09: Implement borrowing workflow pages,New,2,Business,Decomai,EPIC-08; MVP
+149,User Story,US-08.10: Implement profile pages,New,1,Business,Decomai,EPIC-08; MVP
+150,User Story,US-08.11: Implement navigation and layout,New,1,Business,Decomai,EPIC-08; MVP
+152,User Story,US-09.01: Set up testing infrastructure,Closed,1,Business,Decomai,EPIC-09; MVP
+153,User Story,US-09.02: Write unit tests for domain models,Closed,2,Business,Decomai,EPIC-09; MVP
+154,User Story,US-09.03: Write unit tests for services,Closed,3,Business,Decomai,EPIC-09; MVP
+155,User Story,US-09.04: Write integration tests for API endpoints,New,3,Business,Decomai,EPIC-09; MVP
+156,User Story,US-09.05: Write end-to-end tests for critical flows,New,2,Business,Decomai,EPIC-09; MVP
+157,User Story,US-09.06: Perform security testing,New,1,Business,Decomai,EPIC-09; MVP
+158,User Story,US-09.07: Perform manual testing and bug fixes,New,3,Business,Decomai,EPIC-09; MVP
+160,User Story,US-10.01: Set up production hosting environment,New,2,Business,Decomai,EPIC-10; MVP
+161,User Story,US-10.02: Configure production database,New,1,Business,Decomai,EPIC-10; MVP
+162,User Story,US-10.03: Set up deployment pipeline,New,2,Business,Decomai,EPIC-10; MVP
+163,User Story,US-10.04: Configure monitoring and logging,New,1,Business,Decomai,EPIC-10; MVP
+164,User Story,US-10.05: Implement backup and disaster recovery,New,1,Business,Decomai,EPIC-10; MVP
+165,User Story,US-10.06: Performance testing and optimization,New,1,Business,Decomai,EPIC-10; MVP
+91,User Story,US-02.07: Implement user profile management,New,3,Business,Decomai,EPIC-02; Post-MVP
+96,User Story,US-03.04: Implement church/community affiliation,New,1,Business,Decomai,EPIC-03; Post-MVP
+98,User Story,US-03.06: View other user profiles,New,1,Business,Decomai,EPIC-03; Post-MVP
+106,User Story,US-04.07: Upload book cover images,New,1,Business,Decomai,EPIC-04; Post-MVP
+114,User Story,US-05.06: Implement recently added books feed,Closed,1,Business,Decomai,EPIC-05; Post-MVP
+115,User Story,US-05.07: Implement saved searches/favorites,Active,1,Business,Decomai,EPIC-05; Post-MVP
+129,User Story,US-06.13: View borrowing history,New,1,Business,Decomai,EPIC-06; Post-MVP
+167,User Story,US-11.01: Create reviews and ratings data model,New,1,Business,Decomai,EPIC-11; Post-MVP
+168,User Story,US-11.02: Rate and review books,New,1,Business,Decomai,EPIC-11; Post-MVP
+169,User Story,US-11.03: Rate borrowers and lenders,New,2,Business,Decomai,EPIC-11; Post-MVP
+170,User Story,US-11.04: View book reviews and ratings,New,1,Business,Decomai,EPIC-11; Post-MVP
+171,User Story,US-11.05: View user ratings,New,1,Business,Decomai,EPIC-11; Post-MVP
+173,User Story,US-12.01: Create community groups data model,New,1,Business,Decomai,EPIC-12; Post-MVP
+174,User Story,US-12.02: Create and manage community groups,New,1,Business,Decomai,EPIC-12; Post-MVP
+175,User Story,US-12.03: Join and leave groups,New,1,Business,Decomai,EPIC-12; Post-MVP
+176,User Story,US-12.04: Search and filter within groups,New,1,Business,Decomai,EPIC-12; Post-MVP
+177,User Story,US-12.05: Group messaging and announcements,New,2,Business,Decomai,EPIC-12; Post-MVP
+178,User Story,US-12.06: Group statistics and insights,New,1,Business,Decomai,EPIC-12; Post-MVP
+180,User Story,US-13.01: Create admin dashboard,New,2,Business,Decomai,EPIC-13; Post-MVP
+181,User Story,US-13.02: User management and moderation,New,2,Business,Decomai,EPIC-13; Post-MVP
+182,User Story,US-13.03: Content moderation tools,New,2,Business,Decomai,EPIC-13; Post-MVP
+183,User Story,US-13.04: Reporting and analytics,New,2,Business,Decomai,EPIC-13; Post-MVP
+184,User Story,US-13.05: System configuration management,New,1,Business,Decomai,EPIC-13; Post-MVP
+186,User Story,US-09.08 Upgrade Solution from net8.0 to net10.0,New,,Business,Decomai\Iteration 1,
+188,User Story,TD: Per-loan notification overrides with background job framework,New,,Business,Decomai\Iteration 1,EPIC-07; Post-MVP; Technical Debt
+189,User Story,TD: Domain events for entity lifecycle and state reconciliation.,New,,Business,Decomai\Iteration 1,Architecture; Post-MVP; Technical Debt
+190,User Story,TD: Resource-based authorization,New,,Business,Decomai\Iteration 1,Architecture; Post-MVP; Technical Debt
+191,User Story,TD: Standardize user-name projection in service DTOs,New,,Business,Decomai\Iteration 1,EPIC-09; Post-MVP; Technical Debt
+192,User Story,TD: Standardize user identifier in application logs.,New,,Business,Decomai\Iteration 1,EPIC-09; Post-MVP; Technical Debt
+193,User Story,TD: Enable skipped transactional service tests via SQLite in-memory.,New,,Business,Decomai\Iteration 1,EPIC-09; Post-MVP; Technical Debt
+194,User Story,US-06.14: Add status filter and pagination to incoming/outgoing borrow-request endpoints,Closed,2,Business,Decomai\Iteration 1,EPIC-06; MVP
+195,User Story,TD: Reorder LoanStatus enum to temporal flow,New,,Business,Decomai\Iteration 1,EPIC-06; Low Priority; Post-MVP; Technical Debt
+196,User Story,TD: Evaluate FluentAssertions licensing for commercial use,New,,Business,Decomai\Iteration 1,Architecture; Post-MVP; Technical Debt
+197,User Story,TD: Stop swallowing query exceptions in paged-list service methods,New,,Business,Decomai\Iteration 1,Architecture; Post-MVP; Technical Debt
+198,User Story,TD: Design state-change history pattern for entities,New,,Business,Decomai\Iteration 1,Architecture; EPIC-09; Post-MVP; Technical Debt
+199,User Story,US-13.15: Configurable maximum extension period,New,,Business,Decomai\Iteration 1,EPIC-13; Post-MVP
+200,User Story,US-06.15: Lender grants extension proactively,New,,Business,Decomai\Iteration 1,EPIC-06; Post-MVP
