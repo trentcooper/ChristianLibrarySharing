@@ -1,5 +1,8 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using ChristianLibrary.Data.Context;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using ChristianLibrary.Domain.Enums;
 
 namespace ChristianLibrary.API.Controllers;
 
@@ -13,10 +16,12 @@ namespace ChristianLibrary.API.Controllers;
 public class AdminController : ControllerBase
 {
     private readonly ILogger<AdminController> _logger;
+    private readonly ApplicationDbContext _context;
 
-    public AdminController(ILogger<AdminController> logger)
+    public AdminController(ILogger<AdminController> logger, ApplicationDbContext context)
     {
         _logger = logger;
+        _context = context;
     }
 
     /// <summary>
@@ -26,18 +31,22 @@ public class AdminController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public ActionResult<object> GetDashboardStats()
+    public async Task<ActionResult<object>> GetDashboardStats()
     {
         var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
         
         _logger.LogInformation("Admin dashboard stats accessed by {Email}", email);
         
+        var totalUsers = await _context.Users.CountAsync();
+        var totalBooks = await _context.Books.CountAsync();
+        var activeLoans = await _context.Loans.CountAsync(l => l.Status == LoanStatus.Active);
+        var pendingApprovals = await _context.BorrowRequests.CountAsync(r => r.Status == BorrowRequestStatus.Pending);
         return Ok(new
         {
-            totalUsers = 150,
-            activeLoans = 42,
-            pendingApprovals = 8,
-            totalBooks = 350
+            totalUsers,
+            activeLoans,
+            pendingApprovals,
+            totalBooks
         });
     }
 
