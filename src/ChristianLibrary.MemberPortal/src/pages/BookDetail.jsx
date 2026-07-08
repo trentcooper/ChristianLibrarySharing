@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
-export default function BookDetailPage() {
+export default function BookDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
     const [book, setBook] = useState(null);
@@ -38,79 +38,51 @@ export default function BookDetailPage() {
         }
     };
 
-    if (loading) return <p style={{ padding: '2rem' }}>Loading...</p>;
-    if (error) return <p style={{ padding: '2rem', color: '#c62828' }}>{error}</p>;
+    if (loading) return <p className="p-8 text-gray-500">Loading...</p>;
+    if (error) return <p className="p-8 text-red-600">{error}</p>;
 
     return (
-        <div style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem' }}>
+        <div className="max-w-3xl mx-auto px-6 py-8">
             <button
                 onClick={() => navigate('/')}
-                style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#1976d2',
-                    cursor: 'pointer',
-                    fontSize: '1rem',
-                    marginBottom: '1.5rem',
-                    padding: 0
-                }}
+                className="text-blue-600 hover:text-blue-700 text-sm mb-6 flex items-center gap-1 transition-colors"
             >
                 ← Back to Catalog
             </button>
 
-            <div style={{
-                background: 'white',
-                borderRadius: '8px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                padding: '2rem'
-            }}>
-                <h1 style={{ margin: '0 0 0.5rem 0' }}>{book.title}</h1>
-                <p style={{ color: '#666', fontSize: '1.1rem', margin: '0 0 1rem 0' }}>by {book.author}</p>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                <h1 className="text-3xl font-bold text-gray-900 mb-1">{book.title}</h1>
+                <p className="text-gray-500 text-lg mb-4">by {book.author}</p>
 
-                <p style={{
-                    display: 'inline-block',
-                    padding: '0.25rem 0.75rem',
-                    borderRadius: '999px',
-                    backgroundColor: book.isAvailable ? '#e8f5e9' : '#ffebee',
-                    color: book.isAvailable ? '#388e3c' : '#c62828',
-                    fontSize: '0.875rem',
-                    marginBottom: '1.5rem'
-                }}>
+                <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium mb-6 ${
+                    book.isAvailable
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-red-100 text-red-600'
+                }`}>
                     {book.isAvailable ? 'Available' : 'Unavailable'}
-                </p>
+                </span>
 
                 {book.description && (
-                    <p style={{ lineHeight: '1.6', marginBottom: '1.5rem' }}>{book.description}</p>
+                    <p className="text-gray-600 leading-relaxed mb-6">{book.description}</p>
                 )}
 
                 {book.isbn && (
-                    <p style={{ color: '#666', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-                        ISBN: {book.isbn}
-                    </p>
+                    <p className="text-sm text-gray-400 mb-8">ISBN: {book.isbn}</p>
                 )}
 
                 {requestSuccess ? (
-                    <div style={{
-                        background: '#e8f5e9',
-                        color: '#388e3c',
-                        padding: '1rem',
-                        borderRadius: '4px'
-                    }}>
+                    <div className="bg-green-50 text-green-700 px-4 py-3 rounded-lg">
                         ✓ Borrow request submitted successfully!
                     </div>
                 ) : (
                     <button
                         onClick={handleBorrowRequest}
                         disabled={!book.isAvailable || requesting}
-                        style={{
-                            padding: '0.75rem 2rem',
-                            backgroundColor: book.isAvailable ? '#1976d2' : '#ccc',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            fontSize: '1rem',
-                            cursor: book.isAvailable ? 'pointer' : 'not-allowed'
-                        }}
+                        className={`px-8 py-3 rounded-lg text-white font-medium transition-colors ${
+                            book.isAvailable
+                                ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
+                                : 'bg-gray-300 cursor-not-allowed'
+                        }`}
                     >
                         {requesting ? 'Submitting...' : 'Request to Borrow'}
                     </button>
