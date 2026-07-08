@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 
@@ -21,48 +21,30 @@ export default function HomePage() {
         fetchBooks();
     }, []);
 
-    return (
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
-            <h1 style={{ marginBottom: '0.5rem' }}>Christian Library</h1>
-            <p style={{ color: '#666', marginBottom: '2rem' }}>
-                Borrow and share Christian books with your community.
-            </p>
+    if (loading) return <p className="p-8 text-gray-500">Loading books...</p>;
 
-            {loading ? (
-                <p>Loading books...</p>
-            ) : (
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                    gap: '1.5rem'
-                }}>
-                    {books.map(book => (
-                        <div key={book.id} style={{
-                            background: 'white',
-                            borderRadius: '8px',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                            padding: '1.25rem'
-                        }}>
-                            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem' }}>{book.title}</h3>
-                            <p style={{ margin: '0 0 0.5rem 0', color: '#666', fontSize: '0.875rem' }}>{book.author}</p>
-                            <p style={{ margin: '0 0 1rem 0', fontSize: '0.875rem', color: book.isAvailable ? '#388e3c' : '#c62828' }}>
-                                {book.isAvailable ? 'Available' : 'Unavailable'}
-                            </p>
-                            <Link to={`/books/${book.id}`} style={{
-                                display: 'inline-block',
-                                padding: '0.5rem 1rem',
-                                backgroundColor: '#1976d2',
-                                color: 'white',
-                                borderRadius: '4px',
-                                textDecoration: 'none',
-                                fontSize: '0.875rem'
-                            }}>
-                                View Details
-                            </Link>
-                        </div>
-                    ))}
-                </div>
-            )}
+    return (
+        <div className="max-w-6xl mx-auto px-6 py-8">
+            <h1 className="text-4xl font-bold text-blue-600 mb-2">Christian Library</h1>
+            <p className="text-gray-500 mb-8">Borrow and share Christian books with your community.</p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {books.map(book => (
+                    <div key={book.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col gap-2">
+                        <h3 className="font-semibold text-gray-900 text-base leading-snug">{book.title}</h3>
+                        <p className="text-sm text-gray-500">{book.author}</p>
+                        <p className={`text-sm font-medium ${book.isAvailable ? 'text-green-600' : 'text-red-500'}`}>
+                            {book.isAvailable ? 'Available' : 'Unavailable'}
+                        </p>
+                        <Link
+                            to={`/books/${book.id}`}
+                            className="mt-auto inline-block text-center bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
+                        >
+                            View Details
+                        </Link>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }
