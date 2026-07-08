@@ -25,90 +25,52 @@ export default function LoginForm() {
     };
 
     return (
-        <div style={{
-            minHeight: '100vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#f5f5f5'
-        }}>
-            <div style={{
-                background: 'white',
-                padding: '2rem',
-                borderRadius: '8px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                width: '100%',
-                maxWidth: '400px'
-            }}>
-                <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                    Christian Library
-                </h1>
-                <h2 style={{ textAlign: 'center', marginBottom: '1.5rem', fontWeight: 'normal', color: '#666' }}>
-                    Sign In
-                </h2>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 w-full max-w-md p-8">
+                <h1 className="text-2xl font-bold text-gray-900 text-center mb-1">Christian Library</h1>
+                <p className="text-gray-500 text-center mb-8">Sign in to your account</p>
+
                 {error && (
-                    <div style={{
-                        background: '#ffebee',
-                        color: '#c62828',
-                        padding: '0.75rem',
-                        borderRadius: '4px',
-                        marginBottom: '1rem'
-                    }}>
+                    <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg mb-6">
                         {error}
                     </div>
                 )}
-                <form onSubmit={handleSubmit}>
-                    <div style={{ marginBottom: '1rem' }}>
-                        <label style={{ display: 'block', marginBottom: '0.5rem' }}>Email</label>
+
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                         <input
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
-                            style={{
-                                width: '100%',
-                                padding: '0.75rem',
-                                borderRadius: '4px',
-                                border: '1px solid #ddd',
-                                boxSizing: 'border-box'
-                            }}
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                     </div>
-                    <div style={{ marginBottom: '1.5rem' }}>
-                        <label style={{ display: 'block', marginBottom: '0.5rem' }}>Password</label>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
                         <input
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
-                            style={{
-                                width: '100%',
-                                padding: '0.75rem',
-                                borderRadius: '4px',
-                                border: '1px solid #ddd',
-                                boxSizing: 'border-box'
-                            }}
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                     </div>
                     <button
                         type="submit"
                         disabled={loading}
-                        style={{
-                            width: '100%',
-                            padding: '0.75rem',
-                            backgroundColor: '#1976d2',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            fontSize: '1rem',
-                            cursor: loading ? 'not-allowed' : 'pointer'
-                        }}
+                        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium py-2.5 rounded-lg transition-colors mt-2"
                     >
                         {loading ? 'Signing in...' : 'Sign In'}
                     </button>
                 </form>
-                <p style={{ textAlign: 'center', marginTop: '1rem' }}>
-                    Don't have an account? <Link to="/register">Register</Link>
+
+                <p className="text-center text-sm text-gray-500 mt-6">
+                    Don't have an account?{' '}
+                    <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium">
+                        Register
+                    </Link>
                 </p>
             </div>
         </div>

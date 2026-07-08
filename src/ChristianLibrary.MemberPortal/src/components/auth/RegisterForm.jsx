@@ -45,145 +45,89 @@ export default function RegisterForm() {
     };
 
     return (
-        <div style={{
-            minHeight: '100vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#f5f5f5'
-        }}>
-            <div style={{
-                background: 'white',
-                padding: '2rem',
-                borderRadius: '8px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                width: '100%',
-                maxWidth: '400px'
-            }}>
-                <h1 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                    Christian Library
-                </h1>
-                <h2 style={{ textAlign: 'center', marginBottom: '1.5rem', fontWeight: 'normal', color: '#666' }}>
-                    Create Account
-                </h2>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 w-full max-w-md p-8">
+                <h1 className="text-2xl font-bold text-gray-900 text-center mb-1">Christian Library</h1>
+                <p className="text-gray-500 text-center mb-8">Create your account</p>
+
                 {error && (
-                    <div style={{
-                        background: '#ffebee',
-                        color: '#c62828',
-                        padding: '0.75rem',
-                        borderRadius: '4px',
-                        marginBottom: '1rem'
-                    }}>
+                    <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg mb-6">
                         {error}
                     </div>
                 )}
-                <form onSubmit={handleSubmit}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label style={{ display: 'block', marginBottom: '0.5rem' }}>First Name</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                             <input
                                 type="text"
                                 name="firstName"
                                 value={formData.firstName}
                                 onChange={handleChange}
                                 required
-                                style={{
-                                    width: '100%',
-                                    padding: '0.75rem',
-                                    borderRadius: '4px',
-                                    border: '1px solid #ddd',
-                                    boxSizing: 'border-box'
-                                }}
+                                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                         </div>
                         <div>
-                            <label style={{ display: 'block', marginBottom: '0.5rem' }}>Last Name</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
                             <input
                                 type="text"
                                 name="lastName"
                                 value={formData.lastName}
                                 onChange={handleChange}
                                 required
-                                style={{
-                                    width: '100%',
-                                    padding: '0.75rem',
-                                    borderRadius: '4px',
-                                    border: '1px solid #ddd',
-                                    boxSizing: 'border-box'
-                                }}
+                                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                         </div>
                     </div>
-                    <div style={{ marginBottom: '1rem' }}>
-                        <label style={{ display: 'block', marginBottom: '0.5rem' }}>Email</label>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                         <input
                             type="email"
                             name="email"
                             value={formData.email}
                             onChange={handleChange}
                             required
-                            style={{
-                                width: '100%',
-                                padding: '0.75rem',
-                                borderRadius: '4px',
-                                border: '1px solid #ddd',
-                                boxSizing: 'border-box'
-                            }}
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                     </div>
-                    <div style={{ marginBottom: '1rem' }}>
-                        <label style={{ display: 'block', marginBottom: '0.5rem' }}>Password</label>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
                         <input
                             type="password"
                             name="password"
                             value={formData.password}
                             onChange={handleChange}
                             required
-                            style={{
-                                width: '100%',
-                                padding: '0.75rem',
-                                borderRadius: '4px',
-                                border: '1px solid #ddd',
-                                boxSizing: 'border-box'
-                            }}
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                     </div>
-                    <div style={{ marginBottom: '1.5rem' }}>
-                        <label style={{ display: 'block', marginBottom: '0.5rem' }}>Confirm Password</label>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
                         <input
                             type="password"
                             name="confirmPassword"
                             value={formData.confirmPassword}
                             onChange={handleChange}
                             required
-                            style={{
-                                width: '100%',
-                                padding: '0.75rem',
-                                borderRadius: '4px',
-                                border: '1px solid #ddd',
-                                boxSizing: 'border-box'
-                            }}
+                            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                     </div>
                     <button
                         type="submit"
                         disabled={loading}
-                        style={{
-                            width: '100%',
-                            padding: '0.75rem',
-                            backgroundColor: '#1976d2',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            fontSize: '1rem',
-                            cursor: loading ? 'not-allowed' : 'pointer'
-                        }}
+                        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium py-2.5 rounded-lg transition-colors mt-2"
                     >
                         {loading ? 'Creating account...' : 'Create Account'}
                     </button>
                 </form>
-                <p style={{ textAlign: 'center', marginTop: '1rem' }}>
-                    Already have an account? <Link to="/login">Sign In</Link>
+
+                <p className="text-center text-sm text-gray-500 mt-6">
+                    Already have an account?{' '}
+                    <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+                        Sign In
+                    </Link>
                 </p>
             </div>
         </div>
