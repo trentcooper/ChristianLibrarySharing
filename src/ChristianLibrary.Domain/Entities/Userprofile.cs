@@ -204,6 +204,11 @@ public class UserProfile : BaseEntity
     /// Notify on new messages
     /// </summary>
     public bool NotifyOnNewMessage { get; set; } = true;
+    
+    /// <summary>
+    /// Notify the lender with copies of due date and overdue reminders for books they've loaned out (US-06.10)
+    /// </summary>
+    public bool NotifyOnLoanReminderCopies { get; set; } = true;
 
     // Navigation Properties
 

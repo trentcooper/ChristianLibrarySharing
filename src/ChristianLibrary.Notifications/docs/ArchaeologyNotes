@@ -1,0 +1,14 @@
+﻿Code Walk Through
+- Docs Directory is new and contains this document... may consider moving to root and subdir
+
+- Implementations Directory will contain the actual implementation of publishing notifications 
+    -InMemoryNotification.cs current test impl...This will be call made by the dispatcher
+    
+- Interfaces Directory .... currently with a simple interface to publish async notifications 
+    as noted this interface is implemented with inmemory found in implementations directory
+    but will be where the email and rabbitMQ impls will reside
+    
+- Messages Directory
+    - COntains the LoanReminderNotification
+    - Note that the INotification Publisher is actually using this type in teh PublishAsync signature
+    
