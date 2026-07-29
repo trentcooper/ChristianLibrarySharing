@@ -46,7 +46,8 @@ public class ReminderBackgroundServiceTests
         DateTime? returnedDate = null,
         bool borrowerNotifyOnDueDate = true,
         bool lenderNotifyOnLoanReminderCopies = true,
-        bool borrowerHasProfile = true)
+        bool borrowerHasProfile = true,
+        TimeSpan dueTimeOfDay = default)   // NEW: time-of-day on the due date (default = midnight)
     {
         var borrower = new ApplicationUser
         {
@@ -82,7 +83,7 @@ public class ReminderBackgroundServiceTests
             Lender = lender,
             Book = book,
             Status = status,
-            DueDate = Today.AddDays(-daysFromDue),
+            DueDate = Today.Date.AddDays(-daysFromDue) + dueTimeOfDay,   // was: Today.AddDays(-daysFromDue)
             ReturnedDate = returnedDate,
             CreatedAt = Today.AddDays(-30),
         };
@@ -161,6 +162,24 @@ public class ReminderBackgroundServiceTests
 
         publisher.Published.Should().ContainSingle();          // only the good loan
         (await db.Loans.FindAsync(good.Id))!.RemindersSent.Should().Be(1);
+    }
+    
+    [Fact]
+    public async Task ProcessLoansAsync_IncludesLoanDueLaterInTheDay_OnTheCourtesyBoundary()
+    {
+        // A loan due exactly 3 days out but LATE in the day must still be a DueSoon candidate.
+        // Regression: the query cutoff was once midnight of the +3 day, which silently excluded
+        // any loan whose due time was past midnight on that boundary day.
+        await using var db = CreateInMemoryContext();
+        await SeedLoanAsync(db, "boundary", daysFromDue: -3, dueTimeOfDay: TimeSpan.FromHours(18));
+
+        var publisher = new CapturingPublisher();
+        var service = CreateService(publisher);
+
+        await service.ProcessLoansAsync(db, Today, CancellationToken.None);
+
+        publisher.Published.Should().ContainSingle();
+        publisher.Published[0].Category.Should().Be(ReminderCategory.DueSoon);
     }
 
     private sealed class CapturingPublisher : INotificationPublisher

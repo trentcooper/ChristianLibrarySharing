@@ -39,7 +39,8 @@ public class DbSeeder
             await SeedRolesAsync();
             await SeedAdminUserAsync();
             await SeedSampleBooksAsync();
-            await SeedSampleLoansAsync(); // NEW: Seed sample loans
+            await SeedSampleLoansAsync();
+            await SeedSampleReminderLoansAsync();
 
             _logger.LogInformation("Database seeding completed successfully");
         }
@@ -388,5 +389,86 @@ public class DbSeeder
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("Seeded {Count} sample borrow requests (1 approved, 1 pending)", sampleRequests.Count);
+    }
+    
+    /// <summary>
+    /// Seeds sample Loan records positioned across the reminder tiers, so the US-06.10
+    /// reminder job has data to act on (due-soon, due-today, overdue) plus a returned control.
+    /// </summary>
+    private async Task SeedSampleReminderLoansAsync()
+    {
+        _logger.LogInformation("Seeding sample reminder loans...");
+
+        if (await _context.Loans.AnyAsync())
+        {
+            _logger.LogInformation("Loans already exist, skipping reminder loan seeding");
+            return;
+        }
+
+        var adminUser = await _userManager.FindByEmailAsync("admin@christianlibrary.com");
+        var borrowerUser = await _userManager.FindByEmailAsync("borrower@test.com");
+        if (adminUser == null || borrowerUser == null)
+        {
+            _logger.LogWarning("Admin or borrower user not found, cannot seed reminder loans");
+            return;
+        }
+
+        var books = await _context.Books
+            .Where(b => b.OwnerId == adminUser.Id)
+            .OrderBy(b => b.Id)
+            .Take(4)
+            .ToListAsync();
+
+        if (books.Count < 4)
+        {
+            _logger.LogWarning("Not enough books to seed reminder loans (need 4, found {Count})", books.Count);
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+
+        var loans = new List<Loan>
+        {
+            // Due in 3 days -> DueSoon courtesy reminder
+            new Loan
+            {
+                BookId = books[0].Id, BorrowerId = borrowerUser.Id, LenderId = adminUser.Id,
+                Status = LoanStatus.Active, StartDate = now.AddDays(-11), DueDate = now.AddDays(3),
+                ConditionAtCheckout = BookCondition.Good, CreatedAt = now.AddDays(-11)
+            },
+            // Due today -> DueToday courtesy reminder
+            new Loan
+            {
+                BookId = books[1].Id, BorrowerId = borrowerUser.Id, LenderId = adminUser.Id,
+                Status = LoanStatus.Active, StartDate = now.AddDays(-14), DueDate = now,
+                ConditionAtCheckout = BookCondition.Good, CreatedAt = now.AddDays(-14)
+            },
+            // 3 days overdue -> Overdue late notice
+            new Loan
+            {
+                BookId = books[2].Id, BorrowerId = borrowerUser.Id, LenderId = adminUser.Id,
+                Status = LoanStatus.Active, StartDate = now.AddDays(-17), DueDate = now.AddDays(-3),
+                ConditionAtCheckout = BookCondition.Good, CreatedAt = now.AddDays(-17)
+            },
+            // Returned -> control: stays silent even though it was overdue
+            new Loan
+            {
+                BookId = books[3].Id, BorrowerId = borrowerUser.Id, LenderId = adminUser.Id,
+                Status = LoanStatus.Returned, StartDate = now.AddDays(-20), DueDate = now.AddDays(-3),
+                ReturnedDate = now.AddDays(-1), ConditionAtCheckout = BookCondition.Good,
+                ConditionAtReturn = BookCondition.Good, CreatedAt = now.AddDays(-20)
+            }
+        };
+
+        // Reflect that the active loaned books are checked out
+        foreach (var loan in loans.Where(l => l.Status != LoanStatus.Returned))
+        {
+            books.First(b => b.Id == loan.BookId).IsAvailable = false;
+        }
+
+        _context.Loans.AddRange(loans);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Seeded {Count} sample reminder loans (DueSoon, DueToday, Overdue, Returned)", loans.Count);
     }
 }

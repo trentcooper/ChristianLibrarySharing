@@ -5,7 +5,7 @@
     -InMemoryNotification.cs current test impl...This will be call made by the dispatcher
     
 - Interfaces Directory .... currently with a simple interface to publish async notifications 
-    as noted this interface is implemented with inmemory found in implementations directory
+    as noted this interface is implemented with in-memory found in implementations directory
     but will be where the email and rabbitMQ impls will reside
     
 - Messages Directory

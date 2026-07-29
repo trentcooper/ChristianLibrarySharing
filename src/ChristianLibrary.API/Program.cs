@@ -12,6 +12,11 @@ using ChristianLibrary.Data.Context;
 using ChristianLibrary.Data.Extensions;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
+using ChristianLibrary.Notifications.Implementations;
+using ChristianLibrary.Notifications.Interfaces;
+using ChristianLibrary.Notifications.Messages;
+using ChristianLibrary.Notifications.Rules;
+using ChristianLibrary.Services.BackgroundServices;
 
 // Create the logger first (before building the app)
 Log.Logger = new LoggerConfiguration()
@@ -169,12 +174,19 @@ try
         });
 
     // Register application services
-    // Register application services
     builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<IJwtService, JwtService>();
     builder.Services.AddScoped<IBookService, BookService>();
     builder.Services.AddScoped<IBorrowRequestService, BorrowRequestService>();
     builder.Services.AddScoped<ILoanService, LoanService>();
+    
+    // Register loan reminder services (US-06.10)
+    builder.Services.Configure<ReminderServiceSettings>(builder.Configuration.GetSection("ReminderService"));
+    builder.Services.AddSingleton<ReminderRuleEvaluator>();
+    builder.Services.AddSingleton<LoanReminderNotificationFactory>();
+    builder.Services.AddSingleton<INotificationPublisher, InMemoryNotificationPublisher>();
+    builder.Services.AddSingleton<ReminderBackgroundService>();
+    builder.Services.AddHostedService(sp => sp.GetRequiredService<ReminderBackgroundService>());
     
     // Register ImageSharp-based image processing service
     builder.Services.AddScoped<IImageProcessingService, ImageProcessingService>();
@@ -212,9 +224,6 @@ try
 
     // Isbn Lookup Service
     builder.Services.AddHttpClient<IIsbnLookupService, IsbnLookupService>();
-    
-    // Borrow Request Server
-    builder.Services.AddScoped<IBorrowRequestService, BorrowRequestService>();
 
     WebApplication app;
     try
@@ -227,7 +236,7 @@ try
     {
         // Specific handler for type mismatch errors in Entity Configuration
         Log.Fatal("╔════════════════════════════════════════════════════════════╗");
-        Log.Fatal("║  ⚠️  ENTITY CONFIGURATION ERROR DETECTED  ⚠️              ║");
+        Log.Fatal("║  ⚠️  ENTITY CONFIGURATION ERROR DETECTED  ⚠️               ║");
         Log.Fatal("╚════════════════════════════════════════════════════════════╝");
         Log.Fatal("");
         Log.Fatal("🔍 This usually means:");
@@ -348,6 +357,15 @@ try
             timestamp = DateTime.UtcNow
         });
     });
+    
+    if (app.Environment.IsDevelopment())
+    {
+        app.MapPost("/dev/run-reminders", async (ReminderBackgroundService reminders) =>
+        {
+            await reminders.ProcessRemindersAsync(DateTime.UtcNow.Date, CancellationToken.None);
+            return Results.Ok(new { message = "Reminder pass triggered — check the console/log." });
+        });
+    }
 
     Log.Information("ChristianLibrary.API started successfully");
 

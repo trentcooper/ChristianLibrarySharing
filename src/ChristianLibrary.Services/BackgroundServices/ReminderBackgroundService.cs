@@ -60,6 +60,9 @@ namespace ChristianLibrary.Services.BackgroundServices
                 _logger.LogInformation("Reminder service disabled via configuration; not scheduling.");
                 return;
             }
+            _logger.LogInformation(
+                "Reminder service started; first run scheduled for {NextRun:yyyy-MM-dd HH:mm} UTC.",
+                NextRunTime(DateTime.UtcNow, _settings.RunHour));
 
             // TODO(cloud-hardening: TD-203, TD-204): single-instance assumption. With more than one
             // instance running, this loop would double-fire; needs a distributed lock / leader election.
@@ -99,7 +102,7 @@ namespace ChristianLibrary.Services.BackgroundServices
         }
 
         /// <summary>Opens a scope for the scoped DbContext, then runs one pass.</summary>
-        private async Task ProcessRemindersAsync(DateTime today, CancellationToken cancellationToken)
+        public async Task ProcessRemindersAsync(DateTime today, CancellationToken cancellationToken)
         {
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -112,13 +115,15 @@ namespace ChristianLibrary.Services.BackgroundServices
         /// </summary>
         internal async Task ProcessLoansAsync(ApplicationDbContext db, DateTime today, CancellationToken cancellationToken)
         {
-            var cutoff = today.Date.AddDays(CourtesyLeadDays);
+            // exclusive upper bound: start of the day AFTER the courtesy window,
+            // so a loan due at ANY time on the +3 day is still a candidate
+            var cutoff = today.Date.AddDays(CourtesyLeadDays + 1);
 
             var candidates = await db.Loans
                 .Where(l => !l.IsDeleted)
                 .Where(l => l.ReturnedDate == null)
                 .Where(l => OpenStatuses.Contains(l.Status))
-                .Where(l => l.DueDate <= cutoff)
+                .Where(l => l.DueDate < cutoff)     
                 .Include(l => l.Book)
                 .Include(l => l.Borrower).ThenInclude(u => u.Profile)
                 .Include(l => l.Lender).ThenInclude(u => u.Profile)
